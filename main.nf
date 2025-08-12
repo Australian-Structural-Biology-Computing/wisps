@@ -16,6 +16,7 @@
 */
 
 include { WISPS  } from './workflows/wisps'
+
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_wisps_pipeline'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_wisps_pipeline'
 /*
@@ -33,15 +34,26 @@ workflow NFCORE_WISPS {
     samplesheet // channel: samplesheet read in from --input
 
     main:
-
+    ch_samplesheet              = samplesheet
+    ch_multiqc                  = Channel.empty()
+    ch_versions                 = Channel.empty()
+    multiqc_report = Channel.empty()
     //
     // WORKFLOW: Run pipeline
     //
-    WISPS (
-        samplesheet
-    )
+        WISPS (
+            ch_samplesheet,
+            params.mode,
+            ch_versions,
+            params.boltz_ccd,
+            params.boltz_model,
+            params.colabfold_db,
+            params.uniref30
+        )
+        ch_versions = ch_versions.mix(WISPS.out.versions)
+  
     emit:
-    multiqc_report = WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
+    multiqc_report //= WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -67,25 +67,26 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
-    Channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
-        .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
+    ch_samplesheet = Channel.fromList(samplesheetToList(params.input, "assets/schema_input.json"))
+    if (params.split_fasta) {
+        // TODO: here we have to validate that the ids are unique and valid as an extra step
+        // since it is not done with the samplesheet schema (they are all in the same file)
+        ch_samplesheet.map { meta, fasta ->
+            validateFasta(fasta)
         }
-        .groupTuple()
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
-        }
-        .set { ch_samplesheet }
+
+        // Split the fasta file into individual files for each sequence
+        ch_samplesheet
+            .map { meta,fasta -> fasta }
+            .splitFasta( record: [header: true, sequence: true] )
+            .collectFile { item ->
+                [ "${cleanHeader(item["header"])}.fa", ">" + cleanHeader(item["header"]) + '\n' +item["sequence"] ]
+            }
+            .map {
+                file -> [[id: file.baseName], file]
+            }
+            .set { ch_samplesheet }
+    }
 
     emit:
     samplesheet = ch_samplesheet
