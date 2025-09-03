@@ -48,7 +48,8 @@ workflow NFCORE_WISPS {
             params.boltz_ccd,
             params.boltz_model,
             params.colabfold_db,
-            params.uniref30
+            params.uniref30,
+            params.mmseq_batch_size
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
   

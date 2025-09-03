@@ -41,8 +41,27 @@ process MMSEQS_COLABFOLDSEARCH {
     stub:
     """
     mkdir results
-    touch results/${meta.id}.a3m
 
+    if [[ "$fasta" == *.csv ]]; then
+        line_num=0
+        while IFS=, read -r firstcol rest; do
+            line_num=\$((line_num + 1))
+            # Skip the first line (header)
+            if [ "\$line_num" -eq 1 ]; then
+            continue
+            fi
+            # Skip empty first column
+            [ -z "\$firstcol" ] && continue
+
+            # Clean filename (letters, numbers, dash, underscore)
+            safe_name=\$(echo "\$firstcol" | tr -cd '[:alnum:]_-')
+
+            touch "results/\${safe_name}.a3m"
+        done < "$fasta"
+    else
+        touch results/${meta.id}.a3m
+    fi
+    
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_search: \$(conda run -n colabfold pip list | grep "^colabfold" | awk '{print \$2}')

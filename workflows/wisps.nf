@@ -18,7 +18,6 @@
 // MODULE: Installed directly from nf-core/modules
 //
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
-include { MMSEQS_COLABFOLDSEARCH } from '../modules/local/mmseqs_colabfoldsearch'
 include { PREPARE_INTERACTIONS } from '../modules/local/prepare_interactions'
 include { COLLECT_CONFIDENCE } from '../modules/local/collect_confidence'
 //
@@ -27,11 +26,19 @@ include { COLLECT_CONFIDENCE } from '../modules/local/collect_confidence'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
+include { MSA } from '../subworkflows/local/msa'
 
 //
 // MODULE: Boltz
 //
 include { RUN_BOLTZ } from '../modules/local/run_boltz'
+
+//
+// FUNCTIONS
+//
+include { getFastaSequences   } from '../subworkflows/local/msa'
+include { getYamlSequences    } from '../subworkflows/local/msa'
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,6 +56,7 @@ workflow WISPS {
     ch_boltz_model  // channel: [ path(model) ]
     ch_colabfold_db // channel: [ path(colabfold_db) ]
     ch_uniref30     // channel: [ path(uniref30) ]
+    mmseq_batch_size // number
 
     main:
     ch_multiqc_files = Channel.empty()
@@ -56,7 +64,6 @@ workflow WISPS {
     interaction_mode = mode.split(",").collect { pair ->
         pair.split('-').sort().join('-')
     }
-    
     if ("all-all" in interaction_mode) {
         interaction_mode = ["all-all"]
     }else{
@@ -74,9 +81,7 @@ workflow WISPS {
                 }
             }
     }
-
     log.info "Used Interactions (Sorted): ${interaction_mode.join(',')}"
-    
     ch_samplesheet.map{it[0]}
         .combine(ch_samplesheet.map{it[0]})
         .map{[
@@ -87,15 +92,41 @@ workflow WISPS {
         .unique()
         .set{ch_unique_pairs}
 
-    MMSEQS_COLABFOLDSEARCH (
-        ch_samplesheet.filter{it[0].type == "protein"},
+    ch_samplesheet
+    .branch {
+        fasta: it[1].extension == "fasta" || it[1].extension == "fa"
+            it[0].cnt = getFastaSequences(it[1].text).size()
+            return it
+        yaml: it[1].extension == "yaml" || it[1].extension == ".yml"
+            it[0].cnt = getYamlSequences(it[1].text).size()
+            return it
+        json: it[1].extension == "json"
+    }
+    .set{ch_input}
+    
+
+    MSA (
+        ch_input.fasta
+        .mix(ch_input.json)
+        .mix(ch_input.yaml)
+        .filter{it[0].type == "protein"},
         ch_colabfold_db,
-        ch_uniref30
+        ch_uniref30,
+        mmseq_batch_size
     )
-    ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
+    ch_versions = ch_versions.mix(MSA.out.versions)
     
-    ch_input_aligned = ch_samplesheet.join(MMSEQS_COLABFOLDSEARCH.out.a3m, remainder: true)
-    
+    ch_input.fasta
+        .mix(ch_input.json)
+        .mix(ch_input.yaml)
+        .map{[it[0].id, it]}
+        .join(
+            MSA.out.a3m.map{[it[0].id, it]}
+            , remainder: true
+        )
+        .map{[it[2][0], it[1][1], it[2][1]]}
+        .set{ch_input_aligned}
+        
     ch_input_aligned
     .combine(ch_input_aligned)
     .map{[
