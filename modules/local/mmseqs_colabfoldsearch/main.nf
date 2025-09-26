@@ -2,7 +2,7 @@ process MMSEQS_COLABFOLDSEARCH {
     tag "$meta.id"
     label 'process_high_memory'
 
-    container "nf-core/proteinfold_colabfold:dev"
+    container "/g/data/ll61/colabfold_search-gpu.sif"
 
     input:
     tuple val(meta), path(fasta)
@@ -11,6 +11,7 @@ process MMSEQS_COLABFOLDSEARCH {
 
     output:
     tuple val(meta), path("**.a3m"), emit: a3m
+    tuple val(meta), path("**.json"), emit: json, optional: true
     path "versions.yml", emit: versions
 
     when:
@@ -24,9 +25,11 @@ process MMSEQS_COLABFOLDSEARCH {
     def args = task.ext.args ?: ''
 
     """
-    colabfold_search \\
+    mamba run --name colab colabfold_search \\
         $args \\
-        --threads $task.cpus ${fasta} \\
+        --threads $task.cpus \\
+        --use-env 0 --db1 colabfold_uniref30/uniref30_2302_db --db3 colabfold_envdb_202108/colabfold_envdb_202108_db \\
+        ${fasta} \\
         ./db \\
         "result/"
 
@@ -34,7 +37,7 @@ process MMSEQS_COLABFOLDSEARCH {
     "${task.process}":
         colabfold_search: \$(conda run -n colabfold pip list | grep "^colabfold" | awk '{print \$2}')
         alphafold_colabfold: \$(conda run -n colabfold pip list | grep "^alphafold-colabfold" | awk '{print \$2}')
-        mmseqs: \$(mmseqs version)
+        mmseqs: \$(mamba run --name colab mmseqs version)
     END_VERSIONS
     """
 

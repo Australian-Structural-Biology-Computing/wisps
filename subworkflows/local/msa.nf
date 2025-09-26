@@ -13,11 +13,12 @@ workflow MSA {
     ch_samplesheet
     ch_colabfold_db        // channel: path(colabfold_db)
     ch_uniref30            // channel: path(uniref30)   
-    mmseq_batch_size
+    batch_size
     
     main:
     ch_versions = Channel.empty()
     ch_a3m      = Channel.empty()
+    ch_json      = Channel.empty()
     
     ch_samplesheet
     .branch {
@@ -33,7 +34,7 @@ workflow MSA {
     }
     .set{ch_yaml_seqs}
     
-    if (mmseq_batch_size > 1){
+    if (batch_size > 1){
         def batch_itr = 0
         
         ch_input.fasta
@@ -43,7 +44,7 @@ workflow MSA {
         .mix(
             ch_yaml_seqs.map{it[1]}
         )
-        .buffer( size: mmseq_batch_size, remainder: true )
+        .buffer( size: batch_size, remainder: true )
         .collectFile {
             batch_itr += 1;
             [ "input_seqs_${batch_itr}.csv", "id,sequence\n" + it.join("\n") + '\n' ]
@@ -64,7 +65,7 @@ workflow MSA {
             .map{[it[2], it[1]]}
         ).set{ch_input_seqs}
     }
-    ch_input_seqs.view()
+    //ch_input_seqs.view()
 
     MMSEQS_COLABFOLDSEARCH (
         ch_input_seqs,
@@ -85,12 +86,25 @@ workflow MSA {
         )
         .map{[it[1], it[2]]}
     )
+    ch_json = ch_json.mix(
+        ch_input.fasta.mix(ch_input.yaml)
+        .map{[it[1].baseName, it[0]]}
+        .combine(
+            MMSEQS_COLABFOLDSEARCH.out.json
+            .map{it[1]}
+            .flatten()
+            .map {[it.baseName, it]},
+            by:0
+        )
+        .map{[it[1], it[2]]}
+    )
     //MMSEQS_COLABFOLDSEARCH.out.a3m.view()
     //ch_a3m.view()    
     
     emit:
     formated_input          = ch_input.fasta.mix(ch_input.yaml)
     a3m            = ch_a3m
+    json    = ch_json
     versions       = ch_versions
 }
 

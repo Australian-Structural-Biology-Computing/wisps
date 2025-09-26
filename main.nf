@@ -41,15 +41,32 @@ workflow NFCORE_WISPS {
     //
     // WORKFLOW: Run pipeline
     //
+
+    
         WISPS (
             ch_samplesheet,
             params.mode,
             ch_versions,
-            params.boltz_ccd,
-            params.boltz_model,
-            params.colabfold_db,
-            params.uniref30,
-            params.mmseq_batch_size
+            Channel.fromPath(params.boltz_ccd, checkIfExists: true).first(),
+            Channel.fromPath(params.boltz_model, checkIfExists: true).first(),
+            Channel.fromPath(params.boltz2_aff, checkIfExists: true).first(),
+            Channel.fromPath(params.boltz2_conf, checkIfExists: true).first(),
+            Channel.fromPath(params.boltz2_mols, checkIfExists: true).first(),
+            Channel.fromPath(params.colabfold_db, checkIfExists: true).first(),
+            Channel.fromPath(params.uniref30, checkIfExists: true).first(),
+            params.mmseqs_batch_size,
+            params.colabfold_model_preset,
+            Channel.fromPath(params.colabfold_alphafold2_params, checkIfExists: true).first(),
+            params.colabfold_num_recycles,
+            Channel.fromPath(params.alphafold3_params, checkIfExists: true).first(),
+            Channel.fromPath(params.alphafold3_small_bfd, checkIfExists: true).first(),
+            Channel.fromPath(params.alphafold3_mgnify, checkIfExists: true).first(),
+            Channel.fromPath(params.alphafold3_pdb_mmcif, checkIfExists: true).first(),
+            Channel.fromPath(params.alphafold3_uniref90, checkIfExists: true).first(),
+            Channel.fromPath(params.alphafold3_pdb_seqres, checkIfExists: true).first(),
+            Channel.fromPath(params.alphafold3_uniprot, checkIfExists: true).first(),
+            params.tools
+
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
   

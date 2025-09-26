@@ -29,6 +29,23 @@
                     "description": "The output directory where the results will be saved. You have to use absolute paths to storage on Cloud infrastructure.",
                     "fa_icon": "fas fa-folder-open"
                 },
+                "mode": {
+                    "type": "string",
+                    "default": "alphafold2",
+                    "description": "Specifies the mode in which the pipeline will be run. mode can be any combination of ['alphafold2', 'alphafold3', 'colabfold', 'esmfold', 'rosettafold_all_atom', 'boltz', 'helixfold3'] separated by a comma (',') with no spaces.",
+                    "fa_icon": "fas fa-cogs",
+                    "errorMessage": "Mode must be a comma-separated list containing any combination of 'alphafold2', 'alphafold3', 'colabfold', 'esmfold', 'rosettafold_all_atom', 'boltz', or 'helixfold3' with no spaces."
+                },
+                "mmseq_batch_size": {
+                    "type": "integer",
+                    "description": "Number of samples in each mmseq run (batching leads to higher performance time in total.)",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "use_gpu": {
+                    "type": "boolean",
+                    "description": "Run on CPUs (default) or GPUs",
+                    "fa_icon": "fas fa-microchip"
+                },
                 "email": {
                     "type": "string",
                     "description": "Email address for completion summary.",
@@ -43,6 +60,78 @@
                 }
             }
         },
+        "dbs_options": {
+            "title": "Databases options",
+            "type": "object",
+            "fa_icon": "fas fa-terminal",
+            "description": "Define where the pipeline should find input data and save output data.",
+            "required": ["input", "outdir"],
+            "properties": {
+                "colabfold_db": {
+                    "type": "string",
+                    "format": "path",
+                    "exists": true,
+                    "description": "Specifies the PARAMS and DB path used by 'colabfold'  mode",
+                    "fa_icon": "fas fa-folder-open",
+                    "errorMessage": "Please provide a valid path to ColabFold database"
+                },
+                "uniref30": {
+                    "type": "string",
+                    "description": "Link to the UniRef30 database",
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/colabfold_uniref30/*"
+                },
+                "colabfold_envdb": {
+                    "type": "string",
+                    "description": "Link to the ColabFold database",
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/colabfold_envdb/*"
+                },
+                "colabfold_alphafold2_params": {
+                    "type": "string",
+                    "description": "Link to the Alphafold2 parameters for Colabfold",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "colabfold_alphafold2_params_tags": {
+                    "type": "object",
+                    "description": "Dictionary with Alphafold2 parameters tags",
+                    "fa_icon": "fas fa-stream"
+                },
+                "boltz_db": {
+                    "type": "string",
+                    "description": "Path to boltz databases",
+                    "icon": "fas folder-open"
+                },
+                "boltz_ccd": {
+                    "type": "string",
+                    "description": "Path to CCD file",
+                    "icon": "fas folder-open",
+                    "default": "null/params/ccd.pkl"
+                },
+                "boltz_model": {
+                    "type": "string",
+                    "description": "Path to boltz Model file",
+                    "icon": "fas folder-open",
+                    "default": "null/params/boltz1_conf.ckpt"
+                },
+                "boltz2_aff": {
+                    "type": "string",
+                    "default": "null/params/boltz2_aff.ckpt",
+                    "description": "Path to boltz affinity file"
+                },
+                "boltz2_conf_path": {
+                    "type": "string",
+                    "default": "null/params/boltz2_conf.ckpt",
+                    "description": "Path to boltz-2 conf file"
+                },
+                "boltz2_mols_path": {
+                    "type": "string",
+                    "default": "null/params/mols/",
+                    "description": "Path to boltz-2 mols"
+                }
+            }
+        },
+        
         "institutional_config_options": {
             "title": "Institutional config options",
             "type": "object",

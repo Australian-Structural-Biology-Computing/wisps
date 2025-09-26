@@ -53,6 +53,7 @@ process PREPARE_INTERACTIONS {
                 continue  # Skip empty FASTA files
 
             #header = lines[0].strip()
+            lines[-1] = lines[-1].strip() + "\\n"
             body = lines[1:]
             header = f">{all_combinations[counter]}|{seq_type}"
             counter += 1
