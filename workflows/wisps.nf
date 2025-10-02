@@ -26,6 +26,7 @@ include { COLLECT_CONFIDENCE } from '../modules/local/collect_confidence'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
+include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_wisps_pipeline'
 include { MSA } from '../subworkflows/local/msa'
 
 //
@@ -70,17 +71,18 @@ workflow WISPS {
     ch_colabfold_params
     num_recycles
     ch_alphafold3_params // channel: path(alphafold2_params)
-    ch_small_bfd         // channel: path(small_bfd)
-    ch_mgnify            // channel: path(mgnify)
-    ch_mmcif_files       // channel: path(mmcif_files)
-    ch_uniref90          // channel: path(uniref90)
-    ch_pdb_seqres        // channel: path(pdb_seqres)
-    ch_uniprot           // channel: path(uniprot)
     tools
-
+    ch_multiqc_config
+    ch_multiqc_custom_config
+    ch_multiqc_logo
+    ch_multiqc_methods_description
+    outdir
+    
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
+    
+
     interaction_mode = mode.split(",").collect { pair ->
         pair.split('-').sort().join('-')
     }
@@ -276,7 +278,7 @@ workflow WISPS {
     RUN_BOLTZ.out.confidence.collect(flat: false, sort: true).multiMap{json_list ->
         ids: json_list.collect{it[0].id}
         json: json_list.collect{it[1]}
-    }.set{ch_confidence_scores}
+    }.set{ch_boltz_confidence_scores}
     
     //prepare interactions for colabfold
     ch_colabfold_interaction_in = Channel.empty()
@@ -302,7 +304,11 @@ workflow WISPS {
         num_recycles
     )
     ch_versions = ch_versions.mix(COLABFOLD_BATCH.out.versions)
-    
+    COLABFOLD_BATCH.out.top_ranked_scores.collect(flat: false, sort: true).multiMap{json_list ->
+        ids: json_list.collect{it[0].id}
+        json: json_list.collect{it[1]}
+    }.set{ch_colabfold_confidence_scores}
+
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
         MSA.out.json.join(ch_protein_pairs.map{it[0]})
@@ -317,15 +323,15 @@ workflow WISPS {
 
     RUN_ALPHAFOLD3 (
         ch_alphafold3_interaction_in,
-        ch_alphafold3_params,
-        ch_small_bfd,
-        ch_mgnify,
-        ch_mmcif_files,
-        ch_uniref90,
-        ch_pdb_seqres,
-        ch_uniprot
+        ch_alphafold3_params
     )
-    
+    ch_versions = ch_versions.mix(RUN_ALPHAFOLD3.out.versions)
+
+    RUN_ALPHAFOLD3.out.raw_pae.collect(flat: false, sort: true).multiMap{json_list ->
+        ids: json_list.collect{it[0].id}
+        json: json_list.collect{it[1]}
+    }.set{ch_alphafold3_confidence_scores}
+
     
     COLABFOLD_BATCH.out.top_ranked_scores
     .join(COLABFOLD_BATCH.out.top_ranked_pdb)
@@ -359,12 +365,64 @@ workflow WISPS {
         ch_ipsae_in.map{it[2]}
     )
 
+    ch_versions = ch_versions.mix(IPSAE.out.versions)
 
     COLLECT_CONFIDENCE(
-        ch_confidence_scores.ids.map{[["id": "full_run"], it]},
-        ch_confidence_scores.json
+        ch_boltz_confidence_scores.ids
+        .map{[["id": "all-boltz", "model": "boltz"], it]}
+        .mix(ch_colabfold_confidence_scores.ids
+            .map{[["id": "all-colabfold", "model": "colabfold"], it]}
+        )
+        .mix(ch_alphafold3_confidence_scores.ids
+            .map{[["id": "all-alphafold3", "model": "alphafold3"], it]}
+        ),
+        ch_boltz_confidence_scores.json
+        .mix(ch_colabfold_confidence_scores.json)
+        .mix(ch_alphafold3_confidence_scores.json)
     )
+    ch_versions = ch_versions.mix(COLLECT_CONFIDENCE.out.versions)
+
     
+    
+    //
+    // Collate and save software versions
+    //
+    softwareVersionsToYAML(ch_versions)
+        .collectFile(
+            storeDir: "${outdir}/pipeline_info",
+            name: 'nf_core_'  +  'proteinfold_software_'  + 'mqc_'  + 'versions.yml',
+            sort: true,
+            newLine: true
+        ).set { ch_collated_versions }
+
+    //
+    // MODULE: MultiQC
+    //
+    summary_params           = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
+    ch_workflow_summary      = Channel.value(paramsSummaryMultiqc(summary_params))
+    ch_methods_description   = Channel.value(methodsDescriptionText(ch_multiqc_methods_description))
+
+    ch_multiqc_files = Channel.empty()
+    ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
+    ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
+    ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
+
+    MULTIQC (
+        COLLECT_CONFIDENCE.out.confidence.collect(flat: false, sort: true),
+        ch_multiqc_config.collect()
+            .ifEmpty([]),
+        ch_multiqc_custom_config
+            .collect()
+            .ifEmpty([]),
+        ch_multiqc_logo
+            .collect()
+            .ifEmpty([]),
+        [],
+        []
+    )
+
+    ch_versions = ch_versions.mix(MULTIQC.out.versions)
+
     emit:
     versions   = ch_versions
     msa        = RUN_BOLTZ.out.msa

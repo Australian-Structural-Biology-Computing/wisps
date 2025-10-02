@@ -5,23 +5,17 @@ process RUN_ALPHAFOLD3 {
     tag "$meta.id"
     label 'process_medium'
     label 'process_gpu'
-    container "nf-core/proteinfold_alphafold3_standard:1.2.0dev"
+    container "<path to alphafold3.sif>"
     input:
     tuple val(meta), path(json)
     path "params/*"
-    path "small_bfd/*"
-    path "mgnify/*"
-    path "mmcif_files"
-    path "uniref90/*"
-    path "pdb_seqres/*"
-    path "uniprot/*"
     output:
     tuple val(meta), path ("publish/*alphafold3.cif")       , emit: top_ranked_cif
     tuple val(meta), path ("publish/*ranked_*.cif")         , emit: cif
     tuple val(meta), path ("${meta.id}_plddt.tsv")          , emit: multiqc
     tuple val(meta), path ("${meta.id}_alphafold3_msa.tsv") , emit: msa
     tuple val(meta), path ("${meta.id}_0_pae.tsv")          , emit: pae
-    tuple val(meta), path ("*_full_data_0.json")             , emit: raw_pae
+    tuple val(meta), path ("${meta.id}/${meta.id}_confidences.json")   , emit: raw_pae
     path "versions.yml"                                     , emit: versions
     when:
     task.ext.when == null || task.ext.when
@@ -32,21 +26,11 @@ process RUN_ALPHAFOLD3 {
     }
     def args   = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def af3_id = meta.id.toLowerCase()
     """
-    if [ -f pdb_seqres/pdb_seqres.txt ]
-    then
-        sed -i "/^\\w*0/d" pdb_seqres/pdb_seqres.txt
-    fi
     python3 /app/alphafold/run_alphafold.py \\
         --json_path=${json} \\
         --model_dir=./params \\
-        --uniref90_database_path=./uniref90/uniref90_2022_05.fa \\
-        --mgnify_database_path=./mgnify/mgy_clusters_2022_05.fa \\
-        --pdb_database_path=./mmcif_files \\
-        --small_bfd_database_path=./small_bfd/bfd-first_non_consensus_sequences.fasta \\
-        --uniprot_cluster_annot_database_path=./uniprot/uniprot_all_2021_04.fa \\
-        --seqres_database_path=./pdb_seqres/pdb_seqres_2022_09_28.fasta \\
+        --norun_data_pipeline \\
         --output_dir=\$PWD \\
         $args
     ## Rename the top ranked model
@@ -57,18 +41,18 @@ process RUN_ALPHAFOLD3 {
     name=\$(jq -r '.name' ${json})
     cp -n "\${name}/\${name}_model.cif" "publish/${prefix}_alphafold3.cif"
     # Sort the rows by ranking_score in descending order
-    sorted_csv=\$(head -n 1 "\${name}/ranking_scores.csv"; tail -n +2 "\${name}/ranking_scores.csv" | sort -t, -k3 -nr)
+    sorted_csv=\$(head -n 1 "\${name}/\${name}_ranking_scores.csv"; tail -n +2 "\${name}/\${name}_ranking_scores.csv" | sort -t, -k3 -nr)
     rank=0
     touch publish/combined_plddt_mqc.tsv
     # Generate files with rank tag
     echo "\$sorted_csv" | tail -n +2 | while IFS=',' read -r seed sample ranking_score; do
-    cp -n "\${name}/seed-\${seed}_sample-\${sample}/model.cif" "publish/seed_\${seed}_sample_\${sample}_ranked_\${rank}.cif"
+    cp -n "\${name}/seed-\${seed}_sample-\${sample}/\${name}_seed-\${seed}_sample-\${sample}_model.cif" "publish/seed_\${seed}_sample_\${sample}_ranked_\${rank}.cif"
     rank=\$((rank + 1))
     done
     extract_metrics.py --name ${prefix} \\
-        --jsons ${af3_id}/${af3_id}_data.json ${af3_id}/${af3_id}_summary_confidences.json ${af3_id}/${af3_id}_confidences.json \\
+        --jsons ${meta.id}/${meta.id}_data.json ${meta.id}/${meta.id}_summary_confidences.json ${meta.id}/${meta.id}_confidences.json \\
         --structs publish/*ranked_*.cif
-    mv "${prefix}_msa.tsv" "${meta.id}_alphafold3_msa.tsv"
+    mv "${meta.id}_msa.tsv" "${meta.id}_alphafold3_msa.tsv"
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python3 --version | sed 's/Python //g')
