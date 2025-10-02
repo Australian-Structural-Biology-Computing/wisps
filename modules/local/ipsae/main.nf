@@ -9,6 +9,8 @@ process IPSAE {
 
     input:
     tuple val(meta), path(pae), path(pdb)
+    path (extra_files)
+
     output:
     tuple val(meta), path ("*.pml"), emit: pml
     tuple val(meta), path ("*_byres.txt"), emit: byres

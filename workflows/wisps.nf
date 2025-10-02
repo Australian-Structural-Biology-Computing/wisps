@@ -157,18 +157,21 @@ workflow WISPS {
     }
     .map{[["id": it.baseName], it]}
     .set {ch_protein_pairs}
+
+    ch_interaction_in
+    .map{
+        if (it[1][0].type != "protein" && it[1][1].type == "protein"){
+            [it[1][1], it[2][1]]   
+        }else if (it[1][1].type != "protein" && it[1][0].type == "protein"){
+            [it[1][0], it[2][0]]   
+        }
+    }.unique()
+    .set{ch_single_protein}
     //ch_protein_pairs.view()
     MSA (
         ch_protein_pairs
         .mix(
-            ch_interaction_in
-            .map{
-                if (it[1][0].type != "protein" && it[1][1].type == "protein"){
-                    [it[1][1], it[2][1]]   
-                }else if (it[1][1].type != "protein" && it[1][0].type == "protein"){
-                    [it[1][0], it[2][0]]   
-                }
-            }.unique()
+            ch_single_protein
         ),
         ch_colabfold_db,
         ch_uniref30,
@@ -252,15 +255,14 @@ workflow WISPS {
         ch_boltz_data.map{[it[0][0], [it[1][0], it[1][1]].findAll{it}.unique{it.toUriString()}]}
     )
     .map{
-            meta = it[0].clone()
-            meta.model = "boltz"
-            [meta, it[1], it[2]]
+        meta = it[0].clone()
+        meta.model = "boltz"
+        [meta, it[1], it[2]]
     }
     .set{ch_boltz_in}
 
     //ch_boltz_in.view()
-    
-    
+        
     RUN_BOLTZ(
         ch_boltz_in.map{[it[0], it[1]]},
         ch_boltz_in.map{it[2]},
@@ -302,7 +304,7 @@ workflow WISPS {
     ch_versions = ch_versions.mix(COLABFOLD_BATCH.out.versions)
     
     ch_alphafold3_interaction_in = Channel.empty()
-    if ("ZZalphafold3" in tools.split(",")){
+    if ("alphafold3" in tools.split(",")){
         MSA.out.json.join(ch_protein_pairs.map{it[0]})
         .map{
             meta = it[0].clone()
@@ -312,7 +314,6 @@ workflow WISPS {
             ch_alphafold3_interaction_in
         }
     }
-
 
     RUN_ALPHAFOLD3 (
         ch_alphafold3_interaction_in,
@@ -325,22 +326,37 @@ workflow WISPS {
         ch_uniprot
     )
     
+    
+    COLABFOLD_BATCH.out.top_ranked_scores
+    .join(COLABFOLD_BATCH.out.top_ranked_pdb)
+    .map{[["id": it[0].id], it, []]}
+    .join(ch_interaction_in
+        .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
+        .map{["id": it[0].id]}
+    )
+    .mix(
+        RUN_BOLTZ.out.pae
+        .join(RUN_BOLTZ.out.cif)
+        .join(RUN_BOLTZ.out.confidence)
+        .map{[["id": it[0].id], [it[0], it[1], it[2]], it[3]]}
+        .join(ch_interaction_in
+            .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
+            .map{["id": it[0].id]}
+        )
+    )
+    .mix(
+        RUN_ALPHAFOLD3.out.pae.join(RUN_ALPHAFOLD3.out.top_ranked_cif)
+        .map{[["id": it[0].id], it, []]}
+        .join(ch_interaction_in
+            .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
+            .map{["id": it[0].id]}
+        )
+    )
+    .set{ch_ipsae_in}
+    
     IPSAE(
-        COLABFOLD_BATCH.out.top_ranked_scores.join(
-            COLABFOLD_BATCH.out.top_ranked_pdb
-        ).map{[["id": it[0].id], it]}
-            .join(ch_protein_pairs.map{it[0]})
-        .mix(
-            RUN_BOLTZ.out.pae.join(RUN_BOLTZ.out.cif)
-            .map{[["id": it[0].id], it]}
-            .join(ch_protein_pairs.map{it[0]})
-        )
-        .mix(
-            RUN_ALPHAFOLD3.out.pae.join(RUN_ALPHAFOLD3.out.top_ranked_cif)
-            .map{[["id": it[0].id], it]}
-            .join(ch_protein_pairs.map{it[0]})
-        )
-        .map{it[1]}    
+        ch_ipsae_in.map{it[1]},
+        ch_ipsae_in.map{it[2]}
     )
 
 
@@ -348,9 +364,7 @@ workflow WISPS {
         ch_confidence_scores.ids.map{[["id": "full_run"], it]},
         ch_confidence_scores.json
     )
-    //ch_confidence_scores.ids.view()
-    //ch_confidence_scores.json.view()
-
+    
     emit:
     versions   = ch_versions
     msa        = RUN_BOLTZ.out.msa
