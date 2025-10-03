@@ -77,7 +77,8 @@ workflow WISPS {
     ch_multiqc_logo
     ch_multiqc_methods_description
     outdir
-    
+    analysis_batch_size
+
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
@@ -114,18 +115,6 @@ workflow WISPS {
         .unique()
         .set{ch_unique_pairs}
 
-    /*ch_samplesheet
-    .map {
-        if (it[1].extension == "fasta" || it[1].extension == "fa")
-            {it[0].cnt = getFastaSequences(it[1].text).size()}
-        else if (it[1].extension == "yaml" || it[1].extension == ".yml")
-            {it[0].cnt = getYamlSequences(it[1].text).size()}
-        else if (it[1].extension == "json")
-            {it[0].cnt = 0}
-    }
-    .set{ch_input_seqs}
-    */
-    
     ch_samplesheet
     .combine(ch_samplesheet)
     .map{[
@@ -169,6 +158,7 @@ workflow WISPS {
         }
     }.unique()
     .set{ch_single_protein}
+    
     //ch_protein_pairs.view()
     MSA (
         ch_protein_pairs
@@ -194,11 +184,13 @@ workflow WISPS {
         ch_boltz_interactions_in = ch_interaction_in  
     }
 
+    // Adding non protein for boltz
     ch_boltz_data = ch_boltz_data.mix(ch_boltz_interactions_in
         .filter{it[1][0].type != "protein" && it[1][1].type != "protein"}
         .map{[it, ["", ""]]}
     )
 
+    // Adding single protein for boltz
     ch_boltz_data = ch_boltz_data.mix(
         ch_boltz_interactions_in
         .filter{[it[1][0].type, it[1][1].type].count("protein") == 1}
@@ -244,30 +236,47 @@ workflow WISPS {
         )
         .map{[it[1], it[2]]}
     )
+ 
+    batch_id = 0
 
     PREPARE_INTERACTIONS(
-        ch_boltz_data.map{[it[0][0], it[0][2].collect{it.name}]},
-        ch_boltz_data.map{[it[0][0], it[1].collect{it ? it.name: ""}]},
-        ch_boltz_data.map{[it[0][0], [it[0][1][0].type, it[0][1][1].type]]},
-        ch_boltz_data.map{[it[0][2][0], it[0][2][1], it[1][0], it[1][1]].findAll{it}.unique{it.toUriString()}}
+        ch_boltz_data
+            .map{it[0][0].id}
+            .buffer( size: analysis_batch_size, remainder: true )
+            .map{ batch_id += 1; [["id" : "batch-${batch_id}"], it]},
+        ch_boltz_data
+            .map{it[0][2].collect{it.name}}
+            .buffer( size: analysis_batch_size, remainder: true ),
+        ch_boltz_data
+            .map{it[1].collect{it ? it.name: ""}}
+            .buffer( size: analysis_batch_size, remainder: true ),
+        ch_boltz_data
+            .map{[it[0][1][0].type, it[0][1][1].type]}
+            .buffer( size: analysis_batch_size, remainder: true ),
+        ch_boltz_data
+            .map{[it[0][2][0], it[0][2][1], it[1][0], it[1][1]]}
+            .buffer( size: analysis_batch_size, remainder: true )
+            .map{it.flatten()findAll{it}.unique{it.toUriString()}}
+        
     )
-    //PREPARE_INTERACTIONS.out.fasta.view()
 
-    PREPARE_INTERACTIONS.out.fasta.join(
-        ch_boltz_data.map{[it[0][0], [it[1][0], it[1][1]].findAll{it}.unique{it.toUriString()}]}
+    PREPARE_INTERACTIONS.out.fasta
+    .map{it[1]}
+    .flatten()
+    .map{[it.baseName.replace("_boltz_interaction_input", ""), it]}
+    .join(
+        ch_boltz_data
+        .map{[it[0][0].id, [it[1][0], it[1][1]]]}
     )
-    .map{
-        meta = it[0].clone()
-        meta.model = "boltz"
-        [meta, it[1], it[2]]
-    }
+    .buffer( size: analysis_batch_size, remainder: true )
     .set{ch_boltz_in}
 
     //ch_boltz_in.view()
-        
+    boltz_batch = 0
+    
     RUN_BOLTZ(
-        ch_boltz_in.map{[it[0], it[1]]},
-        ch_boltz_in.map{it[2]},
+        ch_boltz_in.map{boltz_batch += 1; [["id": "batch-${boltz_batch}"], it.collect{it[1]}]},
+        ch_boltz_in.map{it.collect{it[2]}.flatten().findAll{it}.unique{it.toUriString()}},
         ch_boltz_model,
         ch_boltz_ccd,
         ch_boltz2_aff,
@@ -275,19 +284,43 @@ workflow WISPS {
         ch_mols
     )
     
-    RUN_BOLTZ.out.confidence.collect(flat: false, sort: true).multiMap{json_list ->
+
+    RUN_BOLTZ.out.confidence
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
+    .view()
+    .set{ch_boltz_confidence}
+    
+    RUN_BOLTZ.out.pae
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
+    .set{ch_boltz_pae}
+    
+    RUN_BOLTZ.out.cif
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
+    .set{ch_boltz_cif}
+
+  
+    ch_boltz_confidence
+    .collect(flat: false, sort: true).multiMap{json_list ->
         ids: json_list.collect{it[0].id}
         json: json_list.collect{it[1]}
     }.set{ch_boltz_confidence_scores}
-    
+   
     //prepare interactions for colabfold
     ch_colabfold_interaction_in = Channel.empty()
     if ("colabfold" in tools.split(",")){
+        colabfold_batch = 0
         MSA.out.a3m.join(ch_protein_pairs.map{it[0]})
+        .map{it[1]}
+        .buffer( size: analysis_batch_size, remainder: true )
         .map{
-            meta = it[0].clone()
-            meta.model = "colabfold"
-            [meta, it[1]]
+            colabfold_batch += 1;
+            [["id": "batch-${colabfold_batch}"], it]
         }
         .set{
             ch_colabfold_interaction_in
@@ -304,10 +337,27 @@ workflow WISPS {
         num_recycles
     )
     ch_versions = ch_versions.mix(COLABFOLD_BATCH.out.versions)
-    COLABFOLD_BATCH.out.top_ranked_scores.collect(flat: false, sort: true).multiMap{json_list ->
+   
+    COLABFOLD_BATCH.out.top_ranked_scores
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[0], "model": "colabfold"], it]}
+    .set{ch_colabfold_scores}
+    
+    COLABFOLD_BATCH.out.pdb
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[0], "model": "colabfold"], it]}
+    .set{ch_colabfold_pdb}
+
+
+    ch_colabfold_scores
+    .collect(flat: false, sort: true).multiMap{json_list ->
         ids: json_list.collect{it[0].id}
         json: json_list.collect{it[1]}
     }.set{ch_colabfold_confidence_scores}
+
+    
 
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
@@ -327,37 +377,38 @@ workflow WISPS {
     )
     ch_versions = ch_versions.mix(RUN_ALPHAFOLD3.out.versions)
 
+    
     RUN_ALPHAFOLD3.out.raw_pae.collect(flat: false, sort: true).multiMap{json_list ->
         ids: json_list.collect{it[0].id}
         json: json_list.collect{it[1]}
     }.set{ch_alphafold3_confidence_scores}
 
     
-    COLABFOLD_BATCH.out.top_ranked_scores
-    .join(COLABFOLD_BATCH.out.top_ranked_pdb)
+    ch_colabfold_scores
+    .join(ch_colabfold_pdb)
     .map{[["id": it[0].id], it, []]}
     .join(ch_interaction_in
         .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
         .map{["id": it[0].id]}
     )
     .mix(
-        RUN_BOLTZ.out.pae
-        .join(RUN_BOLTZ.out.cif)
-        .join(RUN_BOLTZ.out.confidence)
+        ch_boltz_pae
+        .join(ch_boltz_cif)
+        .join(ch_boltz_confidence)
         .map{[["id": it[0].id], [it[0], it[1], it[2]], it[3]]}
         .join(ch_interaction_in
             .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
             .map{["id": it[0].id]}
         )
     )
-    .mix(
+    /*.mix(
         RUN_ALPHAFOLD3.out.pae.join(RUN_ALPHAFOLD3.out.top_ranked_cif)
         .map{[["id": it[0].id], it, []]}
         .join(ch_interaction_in
             .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
             .map{["id": it[0].id]}
         )
-    )
+    )*/
     .set{ch_ipsae_in}
     
     IPSAE(
@@ -425,10 +476,5 @@ workflow WISPS {
 
     emit:
     versions   = ch_versions
-    msa        = RUN_BOLTZ.out.msa
-    structures = RUN_BOLTZ.out.structures
-    confidence = RUN_BOLTZ.out.confidence
-    run_confidence = COLLECT_CONFIDENCE.out.confidence
-    plddt      = RUN_BOLTZ.out.plddt
-    pdb        = RUN_BOLTZ.out.pdb
+    
 } 

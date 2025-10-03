@@ -6,7 +6,7 @@ process COLABFOLD_BATCH {
     container "nf-core/proteinfold_colabfold:dev"
 
     input:
-    tuple val(meta), path(fasta)
+    tuple val(meta), path("alignment/*")
     val   colabfold_model_preset
     path  ('params/*')
     path  ('colabfold_db/*')
@@ -14,12 +14,9 @@ process COLABFOLD_BATCH {
     val   numRec
 
     output:
-    tuple val(meta), path ("${meta.id}_colabfold.pdb"), emit: top_ranked_pdb
-    tuple val(meta), path ("*relaxed_rank_*.pdb")     , emit: pdb
+    tuple val(meta), path ("*relaxed_rank*_model_1_*.pdb")     , emit: pdb
     tuple val(meta), path ("*_coverage.png")          , emit: msa
-    tuple val(meta), path ("*_mqc.png")               , emit: multiqc
-    tuple val(meta), path ("${meta.id}_0_pae.tsv")    , emit: pae
-    tuple val(meta), path ("${meta.id}_scores_rank_001_*.json")    , emit: top_ranked_scores
+    tuple val(meta), path ("*_scores_rank_001_*.json")    , emit: top_ranked_scores
     path "versions.yml"                               , emit: versions
 
     when:
@@ -41,21 +38,9 @@ process COLABFOLD_BATCH {
         --num-recycle ${numRec} \\
         --data \$PWD \\
         --model-type ${colabfold_model_preset} \\
-        ${fasta} \\
+        alignment \\
         \$PWD
-    for i in `find *.png -maxdepth 0`; do cp \$i \${i%'.png'}_mqc.png; done
-    if [ ! -e `find *_relaxed_rank_001_*.pdb` ]; then
-        cp *_relaxed_rank_001*.pdb ${meta.id}_colabfold.pdb
-    else
-        cp *_unrelaxed_rank_001*.pdb ${meta.id}_colabfold.pdb
-    fi
-
-    #Note: only multimer prefix is meta.id
-    extract_metrics.py --name ${meta.id} \\
-        --colabfold_pae *_predicted_aligned_error_v1.json
-
-    mv *_coverage.png ${meta.id}_seq_coverage.png
-
+    
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')
@@ -64,15 +49,12 @@ process COLABFOLD_BATCH {
 
     stub:
     """
-    touch ./"${meta.id}"_colabfold.pdb
-    touch ./"${meta.id}"_mqc.png
     touch ./${meta.id}_relaxed_rank_01.pdb
     touch ./${meta.id}_relaxed_rank_02.pdb
     touch ./${meta.id}_relaxed_rank_03.pdb
     touch ./${meta.id}_coverage.png
     touch ./${meta.id}_scores_rank.json
-    touch ./${meta.id}_0_pae.tsv
-
+    
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')

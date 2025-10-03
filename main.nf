@@ -61,7 +61,8 @@ workflow NFCORE_WISPS {
             ch_multiqc_custom_config,
             ch_multiqc_logo,
             ch_multiqc_methods_description,
-            params.outdir
+            params.outdir,
+            params.analysis_batch_size
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
   
