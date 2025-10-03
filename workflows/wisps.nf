@@ -244,7 +244,7 @@ workflow WISPS {
         )
         .map{[it[1], it[2]]}
     )
-    
+
     PREPARE_INTERACTIONS(
         ch_boltz_data.map{[it[0][0], it[0][2].collect{it.name}]},
         ch_boltz_data.map{[it[0][0], it[1].collect{it ? it.name: ""}]},

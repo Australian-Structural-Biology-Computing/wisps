@@ -58,7 +58,7 @@ process COLABFOLD_BATCH {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        colabfold_batch: \$(conda run -n colabfold pip list | grep "^colabfold" | awk '{print \$2}')
+        colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')
     END_VERSIONS
     """
 
@@ -75,7 +75,7 @@ process COLABFOLD_BATCH {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        colabfold_batch: \$(conda run -n colabfold pip list | grep "^colabfold" | awk '{print \$2}')
+        colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')
     END_VERSIONS
     """
 }
