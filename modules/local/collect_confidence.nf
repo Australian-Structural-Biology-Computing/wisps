@@ -26,6 +26,7 @@ process COLLECT_CONFIDENCE {
     import os, sys
     import json
     import csv
+    import statistics
 
     # Folder containing the JSON files
     output_csv = "${meta.model}_confidence_scores_full.csv"
