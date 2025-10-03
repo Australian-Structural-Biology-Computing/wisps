@@ -5,7 +5,7 @@ process RUN_ALPHAFOLD3 {
     tag "$meta.id"
     label 'process_medium'
     label 'process_gpu'
-    container "<path to alphafold3.sif>"
+    container "quay.io/nf-core/proteinfold_alphafold3_standard:2.1.0dev"
     input:
     tuple val(meta), path("data/*")
     path "params/*"
