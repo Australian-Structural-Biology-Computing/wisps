@@ -20,7 +20,13 @@ process SPLIT_MSA {
     def args = task.ext.args ?: ''
 
     """
-    msa_manager.py ${msa} -o output_msa --meta_id ${meta.id}
+    files=(${msa.collect { "\"${it}\"" }.join(" ")})
+
+    for f in "\${files[@]}"; do
+        meta_id=\$(basename "\$f")
+        msa_manager.py \$f -o output_msa --meta_id "\${meta_id}"    
+    done
+    
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

@@ -210,24 +210,31 @@ workflow WISPS {
                 [it[1], ["", it[3]]]
         }
     )
-
+    split_batch_id = 0
     SPLIT_MSA(
-        ch_split_msa_in.join(ch_protein_pairs.map{it[0]})
+        ch_split_msa_in
+        .map{it[1]}
+        .buffer( size: mmseqs_batch_size, remainder: true )
+        .map{ split_batch_id += 1; [["id" : "batch-${split_batch_id}"], it]}
     )
 
     ch_versions = ch_versions.mix(SPLIT_MSA.out.versions)
     
-    ch_boltz_data = ch_boltz_data.mix(ch_boltz_interactions_in
+    SPLIT_MSA.out.msa_csv
+    .map{it[1]}
+    .flatten()
+    .map{[["id" : it.baseName.split("_")[0]], it]}
+    .groupTuple(sort: true)
+    .set{ch_split_msa_out}
+
+    ch_boltz_data = ch_boltz_data
+        .mix(ch_boltz_interactions_in
         .filter{it[1][0].type == "protein" && it[1][1].type == "protein"}
         .map{[["id": it[0].id], it]}
         .join(
-            SPLIT_MSA.out.msa_csv
+            ch_split_msa_out
             .map{
-                if (it[1] instanceof List){
-                    if (it[1].size() != 2){
-                        log.warn "Something wrong with the data expected 2 csv!"
-                    }
-                }else{
+                if (it[1].size() == 1){
                     it[1] = [it[1], it[1]] 
                 }
                 it
@@ -289,7 +296,6 @@ workflow WISPS {
     .map{it[1]}
     .flatten()
     .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
-    .view()
     .set{ch_boltz_confidence}
     
     RUN_BOLTZ.out.pae
@@ -457,9 +463,11 @@ workflow WISPS {
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
-
+    ch_multiqc_files = ch_multiqc_files
+                        .mix(COLLECT_CONFIDENCE.out.confidence.map{it[1]})
+    //ch_multiqc_files.view()
     MULTIQC (
-        COLLECT_CONFIDENCE.out.confidence.collect(flat: false, sort: true),
+        ch_multiqc_files.collect(sort: true),
         ch_multiqc_config.collect()
             .ifEmpty([]),
         ch_multiqc_custom_config
