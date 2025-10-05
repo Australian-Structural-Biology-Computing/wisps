@@ -364,15 +364,17 @@ workflow WISPS {
     }.set{ch_colabfold_confidence_scores}
 
     
-
+    af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
-        MSA.out.json.join(ch_protein_pairs.map{it[0]})
+        MSA.out.a3m.join(ch_protein_pairs.map{it[0]})
+        .map{it[1]}
+        .buffer( size: analysis_batch_size, remainder: true )
         .map{
-            meta = it[0].clone()
-            meta.model = "alphafold3"
-            [meta, it[1]]}
-       .set{
+            af3_batch += 1;
+            [["id": "batch-${af3_batch}"], it]
+        }
+        .set{
             ch_alphafold3_interaction_in
         }
     }
