@@ -25,7 +25,7 @@ process RUN_ALPHAFOLD3 {
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     python3 /app/alphafold/run_alphafold.py \\
-        --input_dir=${data} \\
+        --input_dir=data/ \\
         --model_dir=./params \\
         --norun_data_pipeline \\
         --output_dir=out/ \\

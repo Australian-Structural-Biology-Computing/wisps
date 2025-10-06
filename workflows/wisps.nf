@@ -61,10 +61,10 @@ workflow WISPS {
     ch_versions     // channel: [ path(versions.yml) ]
     ch_boltz_ccd    // channel: [ path(boltz_ccd) ]
     ch_boltz_model  // channel: [ path(model) ]
-    ch_colabfold_db // channel: [ path(colabfold_db) ]
     ch_boltz2_aff   // channel: [ path(boltz2_aff) ]
     ch_boltz2_conf  // channel: [ path(boltz2_conf) ]
     ch_mols         // channel: [ path(mols) ]
+    ch_colabfold_db // channel: [ path(colabfold_db) ]
     ch_uniref30     // channel: [ path(uniref30) ]
     mmseqs_batch_size // number
     colabfold_model_preset
@@ -215,7 +215,7 @@ workflow WISPS {
         ch_split_msa_in
         .map{it[1]}
         .buffer( size: mmseqs_batch_size, remainder: true )
-        .map{ split_batch_id += 1; [["id" : "batch-${split_batch_id}"], it]}
+        .map{ split_batch_id += 1; [["id" : "batch-${split_batch_id}-${it.size()}"], it]}
     )
 
     ch_versions = ch_versions.mix(SPLIT_MSA.out.versions)
@@ -250,7 +250,7 @@ workflow WISPS {
         ch_boltz_data
             .map{it[0][0].id}
             .buffer( size: analysis_batch_size, remainder: true )
-            .map{ batch_id += 1; [["id" : "batch-${batch_id}"], it]},
+            .map{ batch_id += 1; [["id" : "batch-${batch_id}-${it.size()}"], it]},
         ch_boltz_data
             .map{it[0][2].collect{it.name}}
             .buffer( size: analysis_batch_size, remainder: true ),
@@ -282,7 +282,7 @@ workflow WISPS {
     boltz_batch = 0
     
     RUN_BOLTZ(
-        ch_boltz_in.map{boltz_batch += 1; [["id": "batch-${boltz_batch}"], it.collect{it[1]}]},
+        ch_boltz_in.map{boltz_batch += 1; [["id": "batch-${boltz_batch}-${it.size()}"], it.collect{it[1]}]},
         ch_boltz_in.map{it.collect{it[2]}.flatten().findAll{it}.unique{it.toUriString()}},
         ch_boltz_model,
         ch_boltz_ccd,
@@ -371,7 +371,7 @@ workflow WISPS {
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
             af3_batch += 1;
-            [["id": "batch-${af3_batch}"], it]
+            [["id": "batch-${af3_batch}-${it.size()}"], it]
         }
         .set{
             ch_alphafold3_interaction_in
@@ -408,6 +408,11 @@ workflow WISPS {
         json: json_list.collect{it[1]}
     }.set{ch_alphafold3_confidence_scores}
 
+    ch_boltz_pae
+        .join(ch_boltz_cif)
+        .join(ch_boltz_confidence)
+        .map{["id": it[0].id]}
+        .view()
     
     ch_colabfold_scores
     .join(ch_colabfold_pdb)
