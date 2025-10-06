@@ -13,12 +13,12 @@
                 "errorMessage": "Sequence name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
-            "fasta": {
+            "sequence": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.fa(sta)?$",
-                "errorMessage": "Fasta file must be provided, cannot contain spaces and must have extension '.fa' or '.fasta'"
+                "errorMessage": "Fasta/YAML file must be provided, cannot contain spaces and must have extension '.fa' or '.fasta'"
             },
             "type": {
                 "type": "string",
@@ -33,6 +33,6 @@
                 "default": "all"
             }
         },
-        "required": ["id", "fasta"]
+        "required": ["id", "sequence"]
     }
 }

@@ -31,19 +31,38 @@
                 },
                 "mode": {
                     "type": "string",
-                    "default": "alphafold2",
-                    "description": "Specifies the mode in which the pipeline will be run. mode can be any combination of ['alphafold2', 'alphafold3', 'colabfold', 'esmfold', 'rosettafold_all_atom', 'boltz', 'helixfold3'] separated by a comma (',') with no spaces.",
+                    "default": "all-all",
+                    "description": "Specifies the interactions to be created. You can use all-all, or group-group using teh group column in the samplesheet. You can use mu;ltiple group-group separated by a comma (',') with no spaces.",
                     "fa_icon": "fas fa-cogs",
-                    "errorMessage": "Mode must be a comma-separated list containing any combination of 'alphafold2', 'alphafold3', 'colabfold', 'esmfold', 'rosettafold_all_atom', 'boltz', or 'helixfold3' with no spaces."
+                    "errorMessage": "Check the documenation for more details on this."
                 },
-                "mmseq_batch_size": {
+                "tools": {
+                    "type": "string",
+                    "default": "boltz,colabfold",
+                    "description": "Specifies the models to be run. tools can be any combination of ['alphafold3', 'colabfold', 'boltz'] separated by a comma (',') with no spaces.",
+                    "fa_icon": "fas fa-cogs",
+                    "errorMessage": "Tools must be a comma-separated list containing any combination of 'alphafold3', 'colabfold', or 'boltz' with no spaces."
+                },
+                "mmseqs_batch_size": {
                     "type": "integer",
+                    "default": 10000,
                     "description": "Number of samples in each mmseq run (batching leads to higher performance time in total.)",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "analysis_batch_size": {
+                    "type": "integer",
+                    "default": 10000,
+                    "description": "Number of samples to be processes in teh analysis after multiple single alignment",
                     "fa_icon": "fas fa-microchip"
                 },
                 "use_gpu": {
                     "type": "boolean",
-                    "description": "Run on CPUs (default) or GPUs",
+                    "description": "Run on CPUs (default) or GPUs for the models",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "mmseqs_gpu": {
+                    "type": "boolean",
+                    "description": "Run mmseqs on CPUs (default) or GPUs",
                     "fa_icon": "fas fa-microchip"
                 },
                 "email": {
@@ -60,7 +79,7 @@
                 }
             }
         },
-        "dbs_options": {
+        "dbs_weights_ptions": {
             "title": "Databases options",
             "type": "object",
             "fa_icon": "fas fa-terminal",
@@ -119,19 +138,68 @@
                     "default": "null/params/boltz2_aff.ckpt",
                     "description": "Path to boltz affinity file"
                 },
-                "boltz2_conf_path": {
+                "boltz2_conf": {
                     "type": "string",
                     "default": "null/params/boltz2_conf.ckpt",
                     "description": "Path to boltz-2 conf file"
                 },
-                "boltz2_mols_path": {
+                "boltz2_mols": {
                     "type": "string",
                     "default": "null/params/mols/",
                     "description": "Path to boltz-2 mols"
+                },
+                "alphafold3_params": {
+                    "type": "string",
+                    "default": "null/params//",
+                    "description": "Path to Alphafold3 params"
                 }
             }
         },
-        
+        "models_options": {
+            "title": "Models options",
+            "type": "object",
+            "fa_icon": "fas fa-terminal",
+            "description": "Customise all parameters for the models.",
+            "required": [],
+            "properties": {
+                "colabfold_num_recycles": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "Number of recycles for ColabFold",
+                    "fa_icon": "fas fa-recycle",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "errorMessage": "Number of recycles must be a whole number between 1 and 20"
+                },
+                "colabfold_model_preset": {
+                    "type": "string",
+                    "default": "alphafold2_multimer_v3",
+                    "description": "Model preset for 'colabfold' mode",
+                    "enum": [
+                        "alphafold2_ptm",
+                        "alphafold2_multimer_v1",
+                        "alphafold2_multimer_v2",
+                        "alphafold2_multimer_v3"
+                    ],
+                    "fa_icon": "fas fa-stream"
+                },
+                "ipsae_pae_cutoff": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "The pae cutoff for ipsae.",
+                    "fa_icon": "fas fa-recycle",
+                    "errorMessage": "The pae cutoff for ipsae."
+                },"ipsae_dist_cutoff": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "The dist cutoff for ipsae.",
+                    "fa_icon": "fas fa-recycle",
+                    "errorMessage": ""
+                }
+
+
+            }
+        },
         "institutional_config_options": {
             "title": "Institutional config options",
             "type": "object",
@@ -276,7 +344,12 @@
         {
             "$ref": "#/$defs/input_output_options"
         },
-        
+        {
+            "$ref": "#/$defs/dbs_weights_ptions"
+        },
+        {
+            "$ref": "#/$defs/models_options"
+        },
         {
             "$ref": "#/$defs/institutional_config_options"
         },

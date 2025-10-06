@@ -56,21 +56,21 @@ include { getYamlSequences    } from '../subworkflows/local/msa'
 workflow WISPS {
     
     take:
-    ch_samplesheet  // channel: samplesheet read from --input
+    ch_samplesheet
     mode
-    ch_versions     // channel: [ path(versions.yml) ]
-    ch_boltz_ccd    // channel: [ path(boltz_ccd) ]
-    ch_boltz_model  // channel: [ path(model) ]
-    ch_boltz2_aff   // channel: [ path(boltz2_aff) ]
-    ch_boltz2_conf  // channel: [ path(boltz2_conf) ]
-    ch_mols         // channel: [ path(mols) ]
-    ch_colabfold_db // channel: [ path(colabfold_db) ]
-    ch_uniref30     // channel: [ path(uniref30) ]
-    mmseqs_batch_size // number
+    ch_versions
+    ch_boltz_ccd
+    ch_boltz_model
+    ch_boltz2_aff
+    ch_boltz2_conf
+    ch_mols
+    ch_colabfold_db
+    ch_uniref30
+    mmseqs_batch_size
     colabfold_model_preset
     ch_colabfold_params
     num_recycles
-    ch_alphafold3_params // channel: path(alphafold2_params)
+    ch_alphafold3_params
     tools
     ch_multiqc_config
     ch_multiqc_custom_config
@@ -130,8 +130,6 @@ workflow WISPS {
     .join(ch_unique_pairs)
     .set{ch_interaction_in}
 
-    //ch_interaction_in.view()
-    
     ch_interaction_in
     .filter{it[1][0].type == "protein" && it[1][1].type == "protein"}
     .collectFile{
@@ -170,9 +168,6 @@ workflow WISPS {
         mmseqs_batch_size
     )
     ch_versions = ch_versions.mix(MSA.out.versions)
-    
-    //MSA.out.json.view()
-    //ch_interaction_in.view()
     
     // Prepare interactions for boltz
     ch_boltz_data = Channel.empty()
@@ -278,7 +273,6 @@ workflow WISPS {
     .buffer( size: analysis_batch_size, remainder: true )
     .set{ch_boltz_in}
 
-    //ch_boltz_in.view()
     boltz_batch = 0
     
     RUN_BOLTZ(
@@ -331,7 +325,6 @@ workflow WISPS {
             ch_colabfold_interaction_in
         }
     }
-    //ch_colabfold_interaction_in.view()
     
     COLABFOLD_BATCH(
         ch_colabfold_interaction_in,
@@ -484,7 +477,6 @@ workflow WISPS {
     ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
     ch_multiqc_files = ch_multiqc_files
                         .mix(COLLECT_CONFIDENCE.out.confidence.map{it[1]})
-    //ch_multiqc_files.view()
     MULTIQC (
         ch_multiqc_files.collect(sort: true),
         ch_multiqc_config.collect()
