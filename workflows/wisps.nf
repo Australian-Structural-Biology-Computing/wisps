@@ -307,10 +307,9 @@ workflow WISPS {
     RUN_BOLTZ.out.cif
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_")[0], "model": "boltz"], it]}
     .set{ch_boltz_cif}
 
-  
     ch_boltz_confidence
     .collect(flat: false, sort: true).multiMap{json_list ->
         ids: json_list.collect{it[0].id}
@@ -385,8 +384,26 @@ workflow WISPS {
     )
     ch_versions = ch_versions.mix(RUN_ALPHAFOLD3.out.versions)
 
+    RUN_ALPHAFOLD3.out.top_ranked_cif
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
+    .set{ch_alphafold3_cif}
     
-    RUN_ALPHAFOLD3.out.raw_pae.collect(flat: false, sort: true).multiMap{json_list ->
+    RUN_ALPHAFOLD3.out.confidence
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
+    .set{ch_alphafold3_confidence}
+    
+    RUN_ALPHAFOLD3.out.summary_confidences
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
+    .set{ch_alphafold3_summary_confidences}
+
+
+    ch_alphafold3_summary_confidences.collect(flat: false, sort: true).multiMap{json_list ->
         ids: json_list.collect{it[0].id}
         json: json_list.collect{it[1]}
     }.set{ch_alphafold3_confidence_scores}
@@ -409,14 +426,14 @@ workflow WISPS {
             .map{["id": it[0].id]}
         )
     )
-    /*.mix(
-        RUN_ALPHAFOLD3.out.pae.join(RUN_ALPHAFOLD3.out.top_ranked_cif)
+    .mix(
+        ch_alphafold3_confidence.join(ch_alphafold3_cif)
         .map{[["id": it[0].id], it, []]}
         .join(ch_interaction_in
             .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
             .map{["id": it[0].id]}
         )
-    )*/
+    )
     .set{ch_ipsae_in}
     
     IPSAE(

@@ -49,11 +49,11 @@ process COLABFOLD_BATCH {
 
     stub:
     """
-    touch ./${meta.id}_relaxed_rank_01.pdb
-    touch ./${meta.id}_relaxed_rank_02.pdb
-    touch ./${meta.id}_relaxed_rank_03.pdb
+    touch ./${meta.id}_relaxed_rank_model_1_00.pdb
+    touch ./${meta.id}_relaxed_rank_model_2_00.pdb
+    touch ./${meta.id}_relaxed_rank_model_3_00.pdb
     touch ./${meta.id}_coverage.png
-    touch ./${meta.id}_scores_rank.json
+    touch ./${meta.id}_scores_rank_001_00.json
     
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

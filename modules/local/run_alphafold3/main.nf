@@ -10,9 +10,9 @@ process RUN_ALPHAFOLD3 {
     tuple val(meta), path("data/*")
     path "params/*"
     output:
-    tuple val(meta), path ("publish/*alphafold3.cif")       , emit: top_ranked_cif
-    tuple val(meta), path ("publish/*ranked_*.cif")         , emit: cif
-    tuple val(meta), path ("${meta.id}/${meta.id}_confidences.json")   , emit: raw_pae
+    tuple val(meta), path ("out/*/_model.cif")       , emit: top_ranked_cif
+    tuple val(meta), path ("out/*/*_confidences.json")   , emit: confidence
+    tuple val(meta), path ("out/*/*_summary_confidences.json")   , emit: summary_confidences
     path "versions.yml"                                     , emit: versions
     when:
     task.ext.when == null || task.ext.when
@@ -28,28 +28,22 @@ process RUN_ALPHAFOLD3 {
         --input_dir=${data} \\
         --model_dir=./params \\
         --norun_data_pipeline \\
-        --output_dir=\$PWD \\
+        --output_dir=out/ \\
         $args
-    
     
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python3 --version | sed 's/Python //g')
     END_VERSIONS
     """
+    
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    mkdir publish
-    touch publish/${prefix}_alphafold3.cif
-    touch publish/${prefix}_ranked_1.cif
-    touch publish/${prefix}_ranked_2.cif
-    touch publish/${prefix}_ranked_3.cif
-    touch publish/${prefix}_ranked_4.cif
-    touch publish/${prefix}_ranked_5.cif
-    touch ${prefix}_plddt.tsv
-    touch ${prefix}_alphafold3_msa.tsv
-    touch ${prefix}_0_pae.tsv
+    mkdir out
+    touch out/${prefix}_model.cif
+    touch out/${prefix}_confidences.json
+    touch out/${prefix}_summary_confidences.json
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python3 --version | sed 's/Python //g')
