@@ -235,7 +235,7 @@ workflow WISPS {
             ch_split_msa_out
             .map{
                 if (it[1].size() == 1){
-                    it[1] = [it[1], it[1]] 
+                    it[1] = [it[1][0], it[1][0]] 
                 }
                 it
             }
