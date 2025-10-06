@@ -408,11 +408,6 @@ workflow WISPS {
         json: json_list.collect{it[1]}
     }.set{ch_alphafold3_confidence_scores}
 
-    ch_boltz_pae
-        .join(ch_boltz_cif)
-        .join(ch_boltz_confidence)
-        .map{["id": it[0].id]}
-        .view()
     
     ch_colabfold_scores
     .join(ch_colabfold_pdb)
