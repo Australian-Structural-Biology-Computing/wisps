@@ -12,14 +12,14 @@ workflow MSA {
     take:
     ch_samplesheet
     ch_colabfold_db        // channel: path(colabfold_db)
-    ch_uniref30            // channel: path(uniref30)   
+    ch_uniref30            // channel: path(uniref30)
     batch_size
-    
+
     main:
     ch_versions = Channel.empty()
     ch_a3m      = Channel.empty()
     ch_json      = Channel.empty()
-    
+
     ch_samplesheet
     .branch {
         fasta: it[1].extension == "fasta" || it[1].extension == "fa"
@@ -33,10 +33,10 @@ workflow MSA {
         [it[0], "${it[0].id},${getYamlSequences(it[1].text).collect { it.sequence }.join(':')}"]
     }
     .set{ch_yaml_seqs}
-    
+
     if (batch_size > 1){
         def batch_itr = 0
-        
+
         ch_input.fasta
         .map{
             "${it[0].id},${getFastaSequences(it[1].text).collect { it.sequence }.join(':')}"
@@ -73,7 +73,7 @@ workflow MSA {
         ch_uniref30
     )
     ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
-    
+
     ch_a3m = ch_a3m.mix(
         ch_input.fasta.mix(ch_input.yaml)
         .map{[it[1].baseName, it[0]]}
@@ -99,8 +99,8 @@ workflow MSA {
         .map{[it[1], it[2]]}
     )
     //MMSEQS_COLABFOLDSEARCH.out.a3m.view()
-    //ch_a3m.view()    
-    
+    //ch_a3m.view()
+
     emit:
     formated_input          = ch_input.fasta.mix(ch_input.yaml)
     a3m            = ch_a3m

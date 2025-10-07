@@ -64,7 +64,7 @@ process MMSEQS_COLABFOLDSEARCH {
     else
         touch results/${meta.id}.a3m
     fi
-    
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_search: \$(conda run -n colabfold pip list | grep "^colabfold" | awk '{print \$2}')

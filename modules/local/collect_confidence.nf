@@ -22,7 +22,7 @@ process COLLECT_CONFIDENCE {
 
     """
     #!/usr/bin/env python3
-    
+
     import os, sys
     import json
     import csv
@@ -63,7 +63,7 @@ process COLLECT_CONFIDENCE {
             writer.writeheader()
             for row in rows:
                 writer.writerow({key: row.get(key, "") for key in writing_keys})
-    
+
     def extract_colabfold_results(json_files, samples, output_csv):
         def parse_colabfold_metrics(json_file):
             with open(json_file, "r") as f:
@@ -83,7 +83,7 @@ process COLLECT_CONFIDENCE {
                     result[key] = data[key]
 
             return result
-        
+
         rows = []
         all_keys = ["id", "plddt", "ptm", "iptm", "max_pae"]
         writing_keys = all_keys
@@ -101,19 +101,19 @@ process COLLECT_CONFIDENCE {
             for row in rows:
                 writer.writerow({key: row.get(key, "") for key in writing_keys})
 
-    
-    
+
+
     if "${meta.model}".lower() == "boltz":
         extract_boltz_results(json_files, samples, output_csv)
     elif "${meta.model}".lower() == "colabfold":
         extract_colabfold_results(json_files, samples, output_csv)
     elif "${meta.model}".lower() == "alphafold3":
         extract_alphafold3_results(json_files, samples, output_csv)
-    
+
     print(f"CSV file created at: {output_csv}")
 
     with open ("versions.yml", "w") as version_file:
-	    version_file.write("\\"${task.process}\\":\\n    python: {}\\n".format(sys.version.split()[0].strip()))
+        version_file.write("\\"${task.process}\\":\\n    python: {}\\n".format(sys.version.split()[0].strip()))
     """
 
     stub:

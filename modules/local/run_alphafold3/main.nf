@@ -30,13 +30,13 @@ process RUN_ALPHAFOLD3 {
         --norun_data_pipeline \\
         --output_dir=out/ \\
         $args
-    
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python3 --version | sed 's/Python //g')
     END_VERSIONS
     """
-    
+
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """

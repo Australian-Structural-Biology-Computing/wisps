@@ -1,10 +1,10 @@
 bump_version: null
 lint:
   files_exist:
-  - conf/igenomes.config
-  - conf/igenomes_ignored.config
-  - conf/igenomes.config
-  - conf/igenomes_ignored.config
+    - conf/igenomes.config
+    - conf/igenomes_ignored.config
+    - conf/igenomes.config
+    - conf/igenomes_ignored.config
 nf_core_version: 3.0.2
 org_path: null
 repository_type: pipeline
@@ -17,7 +17,7 @@ template:
   org: nf-core
   outdir: .
   skip_features:
-  - igenomes
-  - fastqc
+    - igenomes
+    - fastqc
   version: 1.0.0dev
 update: null

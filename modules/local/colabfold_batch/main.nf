@@ -40,7 +40,7 @@ process COLABFOLD_BATCH {
         --model-type ${colabfold_model_preset} \\
         alignment \\
         \$PWD
-    
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')
@@ -54,7 +54,7 @@ process COLABFOLD_BATCH {
     touch ./${meta.id}_relaxed_rank_model_3_00.pdb
     touch ./${meta.id}_coverage.png
     touch ./${meta.id}_scores_rank_001_00.json
-    
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')

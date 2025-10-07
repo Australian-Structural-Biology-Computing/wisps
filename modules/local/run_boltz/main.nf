@@ -25,7 +25,7 @@ process RUN_BOLTZ {
     tuple val(meta), path ("boltz_results_*/predictions/*/*model_0.cif")        , optional: true, emit: cif
     tuple val(meta), path ("boltz_results_*/predictions/*/plddt_*model_0.npz")  , emit: plddt
     tuple val(meta), path ("boltz_results_*/predictions/*/pae_*model_0.npz")    , optional: true, emit: pae
-    
+
     path "versions.yml", emit: versions
 
     when:
@@ -43,7 +43,7 @@ process RUN_BOLTZ {
     export HOME=/tmp
 
     boltz predict fasta ${args} --cache ./
-    
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         boltz: $version

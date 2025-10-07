@@ -54,7 +54,7 @@ include { getYamlSequences    } from '../subworkflows/local/msa'
 */
 
 workflow WISPS {
-    
+
     take:
     ch_samplesheet
     mode
@@ -82,7 +82,7 @@ workflow WISPS {
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
-    
+
 
     interaction_mode = mode.split(",").collect { pair ->
         pair.split('-').sort().join('-')
@@ -99,7 +99,7 @@ workflow WISPS {
                 emitted -> {
                     if (required - emitted){
                         log.error "The groups ${required - emitted} is not in the sample sheet!"
-                        exit 1      
+                        exit 1
                     }
                 }
             }
@@ -118,14 +118,14 @@ workflow WISPS {
     ch_samplesheet
     .combine(ch_samplesheet)
     .map{[
-            [  
+            [
                 "id": [it[0]["id"], it[2]["id"]].min() + "-" + [it[0]["id"], it[2]["id"]].max(),
                 "group": [it[0]["group"], it[2]["group"]].min() + "-" + [it[0]["group"], it[2]["group"]].max(),
             ],
             [it[0], it[2]],
             [it[1], it[3]],
     ]}.set{ch_pairs}
-    
+
     ch_pairs
     .join(ch_unique_pairs)
     .set{ch_interaction_in}
@@ -150,13 +150,13 @@ workflow WISPS {
     ch_interaction_in
     .map{
         if (it[1][0].type != "protein" && it[1][1].type == "protein"){
-            [it[1][1], it[2][1]]   
+            [it[1][1], it[2][1]]
         }else if (it[1][1].type != "protein" && it[1][0].type == "protein"){
-            [it[1][0], it[2][0]]   
+            [it[1][0], it[2][0]]
         }
     }.unique()
     .set{ch_single_protein}
-    
+
     //ch_protein_pairs.view()
     MSA (
         ch_protein_pairs
@@ -168,7 +168,7 @@ workflow WISPS {
         mmseqs_batch_size
     )
     ch_versions = ch_versions.mix(MSA.out.versions)
-    
+
     // Prepare interactions for boltz
     ch_boltz_data = Channel.empty()
     ch_split_msa_in = Channel.empty()
@@ -176,7 +176,7 @@ workflow WISPS {
 
     if ("boltz" in tools.split(",")){
         ch_split_msa_in = MSA.out.a3m.join(ch_protein_pairs.map{it[0]})
-        ch_boltz_interactions_in = ch_interaction_in  
+        ch_boltz_interactions_in = ch_interaction_in
     }
 
     // Adding non protein for boltz
@@ -214,7 +214,7 @@ workflow WISPS {
     )
 
     ch_versions = ch_versions.mix(SPLIT_MSA.out.versions)
-    
+
     SPLIT_MSA.out.msa_csv
     .map{it[1]}
     .flatten()
@@ -230,15 +230,15 @@ workflow WISPS {
             ch_split_msa_out
             .map{
                 if (it[1].size() == 1){
-                    it[1] = [it[1][0], it[1][0]] 
+                    it[1] = [it[1][0], it[1][0]]
                 }
                 it
             }
-            
+
         )
         .map{[it[1], it[2]]}
     )
- 
+
     batch_id = 0
 
     PREPARE_INTERACTIONS(
@@ -259,7 +259,7 @@ workflow WISPS {
             .map{[it[0][2][0], it[0][2][1], it[1][0], it[1][1]]}
             .buffer( size: analysis_batch_size, remainder: true )
             .map{it.flatten()findAll{it}.unique{it.toUriString()}}
-        
+
     )
 
     PREPARE_INTERACTIONS.out.fasta
@@ -274,7 +274,7 @@ workflow WISPS {
     .set{ch_boltz_in}
 
     boltz_batch = 0
-    
+
     RUN_BOLTZ(
         ch_boltz_in.map{boltz_batch += 1; [["id": "batch-${boltz_batch}-${it.size()}"], it.collect{it[1]}]},
         ch_boltz_in.map{it.collect{it[2]}.flatten().findAll{it}.unique{it.toUriString()}},
@@ -284,20 +284,20 @@ workflow WISPS {
         ch_boltz2_conf,
         ch_mols
     )
-    
+
 
     RUN_BOLTZ.out.confidence
     .map{it[1]}
     .flatten()
     .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
     .set{ch_boltz_confidence}
-    
+
     RUN_BOLTZ.out.pae
     .map{it[1]}
     .flatten()
     .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
     .set{ch_boltz_pae}
-    
+
     RUN_BOLTZ.out.cif
     .map{it[1]}
     .flatten()
@@ -309,7 +309,7 @@ workflow WISPS {
         ids: json_list.collect{it[0].id}
         json: json_list.collect{it[1]}
     }.set{ch_boltz_confidence_scores}
-   
+
     //prepare interactions for colabfold
     ch_colabfold_interaction_in = Channel.empty()
     if ("colabfold" in tools.split(",")){
@@ -325,7 +325,7 @@ workflow WISPS {
             ch_colabfold_interaction_in
         }
     }
-    
+
     COLABFOLD_BATCH(
         ch_colabfold_interaction_in,
         colabfold_model_preset,
@@ -335,13 +335,13 @@ workflow WISPS {
         num_recycles
     )
     ch_versions = ch_versions.mix(COLABFOLD_BATCH.out.versions)
-   
+
     COLABFOLD_BATCH.out.top_ranked_scores
     .map{it[1]}
     .flatten()
     .map{[["id": it.baseName.split("_")[0], "model": "colabfold"], it]}
     .set{ch_colabfold_scores}
-    
+
     COLABFOLD_BATCH.out.pdb
     .map{it[1]}
     .flatten()
@@ -355,7 +355,7 @@ workflow WISPS {
         json: json_list.collect{it[1]}
     }.set{ch_colabfold_confidence_scores}
 
-    
+
     af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
@@ -382,13 +382,13 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_cif}
-    
+
     RUN_ALPHAFOLD3.out.confidence
     .map{it[1]}
     .flatten()
     .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_confidence}
-    
+
     RUN_ALPHAFOLD3.out.summary_confidences
     .map{it[1]}
     .flatten()
@@ -401,7 +401,7 @@ workflow WISPS {
         json: json_list.collect{it[1]}
     }.set{ch_alphafold3_confidence_scores}
 
-    
+
     ch_colabfold_scores
     .join(ch_colabfold_pdb)
     .map{[["id": it[0].id], it, []]}
@@ -428,7 +428,7 @@ workflow WISPS {
         )
     )
     .set{ch_ipsae_in}
-    
+
     IPSAE(
         ch_ipsae_in.map{it[1]},
         ch_ipsae_in.map{it[2]}
@@ -451,8 +451,8 @@ workflow WISPS {
     )
     ch_versions = ch_versions.mix(COLLECT_CONFIDENCE.out.versions)
 
-    
-    
+
+
     //
     // Collate and save software versions
     //
@@ -495,5 +495,5 @@ workflow WISPS {
 
     emit:
     versions   = ch_versions
-    
-} 
+
+}

@@ -27,12 +27,12 @@ S2,Sample2.fasta,B,protein
 S3,S3.yaml,A,rna
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`  | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore (`_`). |
-| `sequence` | Full path to Fasta/YAML file for sample seqeuence. File has to have the extension ".fasta", ".fa" or "yaml".                                                             |
-| `type` | The sequence type, can be either protein, rna . It is an optional column, by default it will be consdred as protein.                                                             |
-| `group` | it is a way to group samnples to create custom interactions. It is an optional column, if not provided, the inteactions will be `aa-all' which means all sample against all samples.                                                             |
+| Column     | Description                                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore (`_`).                                                                                |
+| `sequence` | Full path to Fasta/YAML file for sample seqeuence. File has to have the extension ".fasta", ".fa" or "yaml".                                                                         |
+| `type`     | The sequence type, can be either protein, rna . It is an optional column, by default it will be consdred as protein.                                                                 |
+| `group`    | it is a way to group samnples to create custom interactions. It is an optional column, if not provided, the inteactions will be `aa-all' which means all sample against all samples. |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 

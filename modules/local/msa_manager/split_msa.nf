@@ -24,9 +24,9 @@ process SPLIT_MSA {
 
     for f in "\${files[@]}"; do
         meta_id=\$(basename "\$f" ".a3m")
-        msa_manager.py \$f -o output_msa --meta_id "\${meta_id}"    
+        msa_manager.py \$f -o output_msa --meta_id "\${meta_id}"
     done
-    
+
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

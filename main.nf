@@ -39,7 +39,7 @@ workflow NFCORE_WISPS {
     //
     // WORKFLOW: Run pipeline
     //
-    
+
         WISPS (
             ch_samplesheet,
             params.mode,
@@ -65,7 +65,7 @@ workflow NFCORE_WISPS {
             params.analysis_batch_size
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
-  
+
     emit:
     multiqc_report //= WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
 }

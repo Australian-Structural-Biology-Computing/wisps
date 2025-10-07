@@ -116,31 +116,26 @@
                     "description": "Dictionary with Alphafold2 parameters tags",
                     "fa_icon": "fas fa-stream"
                 },
-                "boltz_db": {
-                    "type": "string",
-                    "description": "Path to boltz databases",
-                    "icon": "fas folder-open"
-                },
                 "boltz_ccd": {
                     "type": "string",
                     "description": "Path to CCD file",
                     "icon": "fas folder-open",
-                    "default": "null/params/ccd.pkl"
+                    "default": "https://huggingface.co/boltz-community/boltz-1/resolve/main/ccd.pkl"
                 },
                 "boltz_model": {
                     "type": "string",
                     "description": "Path to boltz Model file",
                     "icon": "fas folder-open",
-                    "default": "null/params/boltz1_conf.ckpt"
+                    "default": "https://huggingface.co/boltz-community/boltz-1/resolve/main/boltz1_conf.ckpt"
                 },
                 "boltz2_aff": {
                     "type": "string",
-                    "default": "null/params/boltz2_aff.ckpt",
+                    "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_aff.ckpt",
                     "description": "Path to boltz affinity file"
                 },
                 "boltz2_conf": {
                     "type": "string",
-                    "default": "null/params/boltz2_conf.ckpt",
+                    "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_conf.ckpt",
                     "description": "Path to boltz-2 conf file"
                 },
                 "boltz2_mols": {
@@ -189,15 +184,14 @@
                     "description": "The pae cutoff for ipsae.",
                     "fa_icon": "fas fa-recycle",
                     "errorMessage": "The pae cutoff for ipsae."
-                },"ipsae_dist_cutoff": {
+                },
+                "ipsae_dist_cutoff": {
                     "type": "integer",
                     "default": 10,
                     "description": "The dist cutoff for ipsae.",
                     "fa_icon": "fas fa-recycle",
                     "errorMessage": ""
                 }
-
-
             }
         },
         "institutional_config_options": {
