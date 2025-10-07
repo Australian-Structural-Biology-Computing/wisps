@@ -114,7 +114,7 @@ workflow WISPS {
         .filter{ it["group"] in interaction_mode || interaction_mode[0] == "all-all"}
         .unique()
         .set{ch_unique_pairs}
-
+    ch_unique_pairs.view()
     ch_samplesheet
     .combine(ch_samplesheet)
     .map{[

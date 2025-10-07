@@ -53,7 +53,13 @@ workflow PIPELINE_INITIALISATION {
     UTILS_NFSCHEMA_PLUGIN (
         workflow,
         validate_params,
-        null
+        null,
+        false,
+        false,         // boolean:  show full help message
+        false,         // boolean:  show hidden parameters in help message
+        "",          // string:   text to show before the help message and parameters summary
+        "",          // string:   text to show after the help message and parameters summary
+        ""           // string:   an example command of the pipeline
     )
 
     //
