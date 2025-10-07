@@ -27,14 +27,22 @@ S2,Sample2.fasta,B,protein
 S3,S3.yaml,A,rna
 ```
 
-| Column     | Description                                                                                                                                                                          |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore (`_`).                                                                                |
-| `sequence` | Full path to Fasta/YAML file for sample seqeuence. File has to have the extension ".fasta", ".fa" or "yaml".                                                                         |
-| `type`     | The sequence type, can be either protein, rna . It is an optional column, by default it will be consdred as protein.                                                                 |
-| `group`    | it is a way to group samnples to create custom interactions. It is an optional column, if not provided, the inteactions will be `aa-all' which means all sample against all samples. |
+| Column     | Description                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore or hyphen (`_`, `-`).                                                                                                                                                                                                                               |
+| `sequence` | Full path to Fasta/YAML file for sample sequence. File has to have the extension ".fasta", ".fa", or "yaml".                                                                                                                                                                                                                                       |
+| `type`     | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                             |
+| `group`    | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`. |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+
+## Creating Interactions from sample sheet
+
+The created interactions generated from the sample sheet are customised through the parameter `--mode`. Two different ways to customise what interactions are generated from the sample sheet:
+
+1. The default behavior is for `--mode all-all`. In this case, the workflow will generate interaction pairs for all samples in the sample sheet against each other (all possible combinations) and keep the unique pairs after ignoring the order of the samples. This does not require the group column to be provided in the sample sheet, and this is the default behavior of the workflow unless the `--mode` parameter is customised.
+
+2. A custom combination can be achieved through the column group in the sample sheet. You can use a combination of the group values. You can use multiple combinations by separating them with a comma (`,`). For example, there are group `A` and group `B1` in the example sample sheet above, running the pipeline with `--mode A-A,A-B` will generate the followiong pairs `S1-S1`, `S3-S3`, and `S1-S3` from the combination `A-A` and add to it the pait `S1-S2` and `S2-S3` from teh combination `A-B`.
 
 ## Running the pipeline
 
