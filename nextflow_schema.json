@@ -97,24 +97,17 @@
                 "uniref30": {
                     "type": "string",
                     "description": "Link to the UniRef30 database",
-                    "fa_icon": "fas fa-folder-open",
-                    "default": "null/colabfold_uniref30/*"
+                    "fa_icon": "fas fa-folder-open"
                 },
                 "colabfold_envdb": {
                     "type": "string",
                     "description": "Link to the ColabFold database",
-                    "fa_icon": "fas fa-folder-open",
-                    "default": "null/colabfold_envdb/*"
+                    "fa_icon": "fas fa-folder-open"
                 },
                 "colabfold_alphafold2_params": {
                     "type": "string",
                     "description": "Link to the Alphafold2 parameters for Colabfold",
                     "fa_icon": "fas fa-folder-open"
-                },
-                "colabfold_alphafold2_params_tags": {
-                    "type": "object",
-                    "description": "Dictionary with Alphafold2 parameters tags",
-                    "fa_icon": "fas fa-stream"
                 },
                 "boltz_ccd": {
                     "type": "string",
@@ -140,12 +133,10 @@
                 },
                 "boltz2_mols": {
                     "type": "string",
-                    "default": "null/params/mols/",
                     "description": "Path to boltz-2 mols"
                 },
                 "alphafold3_params": {
                     "type": "string",
-                    "default": "null/params//",
                     "description": "Path to Alphafold3 params"
                 }
             }
