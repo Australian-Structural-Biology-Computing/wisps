@@ -39,6 +39,7 @@ process COLLECT_CONFIDENCE {
         rows = []
         all_keys = ["confidence_score", "ptm", "iptm", "ligand_iptm", "protein_iptm", "complex_plddt", "complex_iplddt", "complex_pde", "complex_ipde", "chains_ptm"]
         writing_keys = ["id", "confidence_score", "ptm", "iptm", "ligand_iptm", "protein_iptm", "complex_plddt", "complex_iplddt", "complex_pde", "complex_ipde"]
+        writing_keys_extra = set()
         # First pass: read and collect keys
         cntr = 0
         for file in json_files:
@@ -52,14 +53,15 @@ process COLLECT_CONFIDENCE {
                     if isinstance(value, dict):
                         for sub_key, sub_value in value.items():
                             flat_data[f"{key}_{sub_key}"] = sub_value
-                            writing_keys.append(f"{key}_{sub_key}")
+                            writing_keys_extra.add(f"{key}_{sub_key}")
                     else:
                         flat_data[key] = value
                 rows.append(flat_data)
 
         # Write to CSV
+
         with open(output_csv, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=writing_keys)
+            writer = csv.DictWriter(f, fieldnames=writing_keys + sorted(writing_keys_extra))
             writer.writeheader()
             for row in rows:
                 writer.writerow({key: row.get(key, "") for key in writing_keys})
