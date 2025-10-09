@@ -65,6 +65,11 @@
                     "description": "Run mmseqs on CPUs (default) or GPUs",
                     "fa_icon": "fas fa-microchip"
                 },
+                "use_spire_db": {
+                    "type": "boolean",
+                    "description": "Use spire DB for search",
+                    "fa_icon": "fas fa-folder-open"
+                },
                 "email": {
                     "type": "string",
                     "description": "Email address for completion summary.",
@@ -100,6 +105,23 @@
                     "fa_icon": "fas fa-folder-open"
                 },
                 "colabfold_envdb": {
+                    "type": "string",
+                    "description": "Link to the ColabFold database",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "colabfold_uniref30_prefix": {
+                    "type": "string",
+                    "description": "Link to the ColabFold database",
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "colabfold_uniref30/uniref30_2302_db"
+                },
+                "colabfold_envdb_prefix": {
+                    "type": "string",
+                    "description": "Link to the ColabFold database",
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "colabfold_uniref30/uniref30_2302_db"
+                },
+                "spire_db": {
                     "type": "string",
                     "description": "Link to the ColabFold database",
                     "fa_icon": "fas fa-folder-open"
@@ -167,6 +189,12 @@
                         "alphafold2_multimer_v2",
                         "alphafold2_multimer_v3"
                     ],
+                    "fa_icon": "fas fa-stream"
+                },
+                "colabfold_search_args": {
+                    "type": "string",
+                    "default": null,
+                    "description": "Arguments to be passed to colabfold_search",
                     "fa_icon": "fas fa-stream"
                 },
                 "ipsae_pae_cutoff": {

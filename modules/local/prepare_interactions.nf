@@ -77,12 +77,14 @@ process PREPARE_INTERACTIONS {
 
     stub:
     """
-    touch "${meta.id}_boltz_interaction_input.fasta"
+    #!/usr/bin/env python3
+    from pathlib import Path
+    import sys, os
+    ids_batch = ${ids.collect { "\"${it}\"" }.toString()}
+    for batch_itr in range(len(ids_batch)):
+        Path(ids_batch[batch_itr] + "_boltz_interaction_input.fasta").touch()
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        python: \$(python3 --version | sed 's/Python //g')
-        generate_comparison_report.py: \$(python3 --version)
-    END_VERSIONS
+    with open ("versions.yml", "w") as version_file:
+        version_file.write("\\"${task.process}\\":\\n    python: {}\\n".format(sys.version.split()[0].strip()))
     """
 }

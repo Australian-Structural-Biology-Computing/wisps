@@ -114,7 +114,7 @@ workflow WISPS {
         .filter{ it["group"] in interaction_mode || interaction_mode[0] == "all-all"}
         .unique()
         .set{ch_unique_pairs}
-    ch_unique_pairs.view()
+
     ch_samplesheet
     .combine(ch_samplesheet)
     .map{[
@@ -304,12 +304,6 @@ workflow WISPS {
     .map{[["id": it.baseName.split("_")[0], "model": "boltz"], it]}
     .set{ch_boltz_cif}
 
-    ch_boltz_confidence
-    .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
-        json: json_list.collect{it[1]}
-    }.set{ch_boltz_confidence_scores}
-
     //prepare interactions for colabfold
     ch_colabfold_interaction_in = Channel.empty()
     if ("colabfold" in tools.split(",")){
@@ -319,7 +313,7 @@ workflow WISPS {
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
             colabfold_batch += 1;
-            [["id": "batch-${colabfold_batch}"], it]
+            [["id": "batch-${colabfold_batch}-${it.size()}"], it]
         }
         .set{
             ch_colabfold_interaction_in
@@ -347,13 +341,6 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_")[0], "model": "colabfold"], it]}
     .set{ch_colabfold_pdb}
-
-
-    ch_colabfold_scores
-    .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
-        json: json_list.collect{it[1]}
-    }.set{ch_colabfold_confidence_scores}
 
 
     af3_batch = 0
@@ -396,19 +383,21 @@ workflow WISPS {
     .set{ch_alphafold3_summary_confidences}
 
 
-    ch_alphafold3_summary_confidences.collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
-        json: json_list.collect{it[1]}
-    }.set{ch_alphafold3_confidence_scores}
-
+    ipsae_batch = 0
 
     ch_colabfold_scores
     .join(ch_colabfold_pdb)
-    .map{[["id": it[0].id], it, []]}
+    .map{[["id": it[0].id], it]}
     .join(ch_interaction_in
         .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
         .map{["id": it[0].id]}
     )
+    .map{[it[1][1], it[1][2], []]}
+    .buffer( size: analysis_batch_size, remainder: true )
+    .map{
+        ipsae_batch += 1;
+        [["id": "batch-${ipsae_batch}-${it.size()}", "model": "colabfold"], it]
+    }
     .mix(
         ch_boltz_pae
         .join(ch_boltz_cif)
@@ -418,23 +407,86 @@ workflow WISPS {
             .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
             .map{["id": it[0].id]}
         )
+        .map{[it[1][1], it[1][2], it[2]]}
+        .buffer( size: analysis_batch_size, remainder: true )
+        .map{
+            ipsae_batch += 1;
+            [["id": "batch-${ipsae_batch}-${it.size()}", "model": "boltz"], it]
+        }
     )
     .mix(
         ch_alphafold3_confidence.join(ch_alphafold3_cif)
-        .map{[["id": it[0].id], it, []]}
+        .map{[["id": it[0].id], it]}
         .join(ch_interaction_in
             .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
             .map{["id": it[0].id]}
         )
+        .map{[it[1][1], it[1][2], []]}
+        .buffer( size: analysis_batch_size, remainder: true )
+        .map{
+            ipsae_batch += 1;
+            [["id": "batch-${ipsae_batch}-${it.size()}", "model": "alphafold3"], it]
+        }
     )
     .set{ch_ipsae_in}
 
     IPSAE(
-        ch_ipsae_in.map{it[1]},
-        ch_ipsae_in.map{it[2]}
+        ch_ipsae_in
+        .map{[it[0], it[1].collect{[it[0].name, it[1].name]}]},
+        ch_ipsae_in
+        .map{it[1].flatten()}
     )
 
     ch_versions = ch_versions.mix(IPSAE.out.versions)
+
+    IPSAE.out.txt
+    .transpose()
+    .branch {
+        boltz: it[0].model == "boltz"
+            lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
+            max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
+            return [it[1].baseName.split("_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+
+        alphafold3: it[0].model == "alphafold3"
+            lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
+            max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
+            return [it[1].baseName.split("_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+
+        colabfold: it[0].model == "colabfold"
+            lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
+            max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
+            return [it[1].baseName.split("_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+    }
+    .set{ch_ipsae_out}
+
+    ch_interaction_in.map{it[0].id}
+    .join(ch_ipsae_out.boltz, remainder: true)
+    .join(ch_ipsae_out.colabfold, remainder: true)
+    .join(ch_ipsae_out.alphafold3, remainder: true)
+    .map{"${it[0]},${it[1] != null ? it[1] : ""},${ it[2] != null ? it[2] : ""},${ it[3] != null ? it[3] : ""}\n"}
+        .toSortedList()
+        .flatten()
+        .collectFile(name: 'ipsae_scores.csv', seed: "Sample,boltz_ipsae,colabfold_ipsae,alphafold3_ipsae\n")
+    .set{ch_ipsae_scores}
+
+    ch_boltz_confidence
+    .collect(flat: false, sort: true).multiMap{json_list ->
+        ids: json_list.collect{it[0].id}
+        json: json_list.collect{it[1]}
+    }.set{ch_boltz_confidence_scores}
+
+    ch_alphafold3_summary_confidences
+    .collect(flat: false, sort: true).multiMap{json_list ->
+        ids: json_list.collect{it[0].id}
+        json: json_list.collect{it[1]}
+    }.set{ch_alphafold3_confidence_scores}
+
+    ch_colabfold_scores
+    .collect(flat: false, sort: true).multiMap{json_list ->
+        ids: json_list.collect{it[0].id}
+        json: json_list.collect{it[1]}
+    }.set{ch_colabfold_confidence_scores}
+
 
     COLLECT_CONFIDENCE(
         ch_boltz_confidence_scores.ids
@@ -477,6 +529,7 @@ workflow WISPS {
     ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
     ch_multiqc_files = ch_multiqc_files
                         .mix(COLLECT_CONFIDENCE.out.confidence.map{it[1]})
+                        .mix(ch_ipsae_scores)
     MULTIQC (
         ch_multiqc_files.collect(sort: true),
         ch_multiqc_config.collect()

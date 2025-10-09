@@ -86,6 +86,7 @@ else:
     print("Wrong PDB or PAE file type ", pdb_path)
     sys.exit()
 
+print(f"Output file name: {path_stem}")
 file_path =        path_stem + ".txt"
 file2_path =       path_stem + "_byres.txt"
 pml_path =         path_stem + ".pml"
@@ -969,3 +970,7 @@ for pair in sorted(chainpairs):
         chain2_residues = f'chain  {chain2} and resi {contiguous_ranges(unique_residues_chain2[chain1][chain2])}'
         PML.write(f'alias {chain_pair}, color gray80, all; color {color1}, {chain1_residues}; color {color2}, {chain2_residues}\n\n')
     OUT.write("\n")
+
+OUT.close()
+PML.close()
+OUT2.close()

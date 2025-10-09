@@ -28,7 +28,6 @@ process MMSEQS_COLABFOLDSEARCH {
     mamba run --name colab colabfold_search \\
         $args \\
         --threads $task.cpus \\
-        --use-env 0 --db1 colabfold_uniref30/uniref30_2302_db --db3 colabfold_envdb_202108/colabfold_envdb_202108_db \\
         ${fasta} \\
         ./db \\
         "result/"
@@ -60,9 +59,11 @@ process MMSEQS_COLABFOLDSEARCH {
             safe_name=\$(echo "\$firstcol" | tr -cd '[:alnum:]_-')
 
             touch "results/\${safe_name}.a3m"
+            touch "results/\${safe_name}.json"
         done < "$fasta"
     else
         touch results/${meta.id}.a3m
+        touch results/${meta.id}.json
     fi
 
     cat <<-END_VERSIONS > versions.yml

@@ -53,17 +53,23 @@ process RUN_BOLTZ {
     stub:
     def version = "2.0.3"
     """
-    mkdir -p boltz_results_${meta.id}/processed/msa/
-    mkdir -p boltz_results_${meta.id}/processed/structures/
-    mkdir -p boltz_results_${meta.id}/predictions/${meta.id}/
+    mkdir -p boltz_results_fasta/processed/msa/
+    mkdir -p boltz_results_fasta/processed/structures/
+    mkdir -p boltz_results_fasta/predictions/
 
-    touch boltz_results_${meta.id}/processed/msa/${meta.id}.npz
-    touch boltz_results_${meta.id}/processed/structures/${meta.id}.npz
-    touch boltz_results_${meta.id}/predictions/${meta.id}/confidence_${meta.id}.json
-    touch boltz_results_${meta.id}/predictions/${meta.id}/${meta.id}.pdb
-    touch boltz_results_${meta.id}/predictions/${meta.id}/${meta.id}.cif
-    touch boltz_results_${meta.id}/predictions/${meta.id}/plddt_${meta.id}_model_0.npz
-    touch boltz_results_${meta.id}/predictions/${meta.id}/pae_${meta.id}_model_0.npz
+    for f in fasta/*; do
+        [[ -f "\$f" ]] || continue
+        fname=\${f##*/}
+        id=\${fname%%_*}
+        mkdir -p boltz_results_fasta/predictions/\${id}_boltz_interaction_input
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/\${id}_boltz_interaction_input_model_0.pdb
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/\${id}_boltz_interaction_input_model_0.cif
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/confidence_\${id}_boltz_interaction_input_model_0.json
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/pae_\${id}_boltz_interaction_input_model_0.npz
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/plddt_\${id}_boltz_interaction_input_model_0.npz
+        touch boltz_results_fasta/processed/msa/\${id}_boltz_interaction_input_0.npz
+        touch boltz_results_fasta/processed/structures/\${id}_boltz_interaction_input.npz
+    done
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

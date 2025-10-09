@@ -49,11 +49,16 @@ process COLABFOLD_BATCH {
 
     stub:
     """
-    touch ./${meta.id}_relaxed_rank_model_1_00.pdb
-    touch ./${meta.id}_relaxed_rank_model_2_00.pdb
-    touch ./${meta.id}_relaxed_rank_model_3_00.pdb
-    touch ./${meta.id}_coverage.png
-    touch ./${meta.id}_scores_rank_001_00.json
+    for f in alignment/*; do
+        [[ -f "\$f" ]] || continue
+        fname=\${f##*/}
+        id=\${fname%%.*}
+        touch \${id}_relaxed_rank_model_1_00.pdb
+        touch \${id}_relaxed_rank_model_2_00.pdb
+        touch \${id}_relaxed_rank_model_3_00.pdb
+        touch \${id}_coverage.png
+        touch \${id}_scores_rank_001_00.json
+    done
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

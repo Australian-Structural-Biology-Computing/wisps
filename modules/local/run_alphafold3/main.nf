@@ -41,9 +41,17 @@ process RUN_ALPHAFOLD3 {
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     mkdir out
-    touch out/${prefix}_model.cif
-    touch out/${prefix}_confidences.json
-    touch out/${prefix}_summary_confidences.json
+
+    for f in data/*; do
+        [[ -f "\$f" ]] || continue
+        fname=\${f##*/}
+        id=\${fname%%.*}
+        mkdir -p out/\$id
+        touch out/\$id/\${id}_model.cif
+        touch out/\$id/\${id}_confidences.json
+        touch out/\$id/\${id}_summary_confidences.json
+    done
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python3 --version | sed 's/Python //g')
