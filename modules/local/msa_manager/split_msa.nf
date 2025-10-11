@@ -4,11 +4,11 @@ process SPLIT_MSA {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
-        'quay.io/biocontainers/python:3.8.3' }"
+        'https://depot.galaxyproject.org/singularity/mgikit:2.1.0--h3ab6199_0' :
+        'biocontainers/mgikit:2.1.0--h3ab6199_0' }"
 
     input:
-    tuple val(meta), path(msa)
+    tuple val(meta), path("input_msa/*")
     output:
     tuple val(meta), path ("output_msa/*.csv"), emit: msa_csv
     path "versions.yml"        , emit: versions
@@ -20,17 +20,12 @@ process SPLIT_MSA {
     def args = task.ext.args ?: ''
 
     """
-    files=(${msa.collect { "\"${it}\"" }.join(" ")})
 
-    for f in "\${files[@]}"; do
-        meta_id=\$(basename "\$f" ".a3m")
-        msa_manager.py \$f -o output_msa --meta_id "\${meta_id}"
-    done
-
+    msakit split-a3m --input input_msa --output output_msa
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        python: \$(python3 --version | sed 's/Python //g')
+        msakit: 0.0.1
     END_VERSIONS
     """
 
@@ -42,7 +37,7 @@ process SPLIT_MSA {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        python: \$(python3 --version | sed 's/Python //g')
+        msakit: 0.0.1
     END_VERSIONS
     """
 }

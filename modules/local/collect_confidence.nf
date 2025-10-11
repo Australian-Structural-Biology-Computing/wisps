@@ -66,6 +66,8 @@ process COLLECT_CONFIDENCE {
             for row in rows:
                 writer.writerow({key: row.get(key, "") for key in writing_keys})
 
+
+
     def extract_colabfold_results(json_files, samples, output_csv):
         def parse_colabfold_metrics(json_file):
             with open(json_file, "r") as f:
