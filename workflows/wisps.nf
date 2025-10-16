@@ -466,7 +466,10 @@ workflow WISPS {
     .map{"${it[0]},${it[1] != null ? it[1] : ""},${ it[2] != null ? it[2] : ""},${ it[3] != null ? it[3] : ""}\n"}
         .toSortedList()
         .flatten()
-        .collectFile(name: 'ipsae_scores.csv', seed: "Sample,boltz_ipsae,colabfold_ipsae,alphafold3_ipsae\n")
+        .collectFile(
+            storeDir: "${outdir}/ipsae",
+            name: 'ipsae_scores.csv',
+            seed: "Sample,boltz_ipsae,colabfold_ipsae,alphafold3_ipsae\n")
     .set{ch_ipsae_scores}
 
     ch_boltz_confidence
