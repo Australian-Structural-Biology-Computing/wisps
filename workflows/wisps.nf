@@ -27,7 +27,6 @@ include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_wisps_pipeline'
-include { MSA } from '../subworkflows/local/msa'
 
 //
 // LOCAL MODULE: Boltz
@@ -38,7 +37,8 @@ include { COLABFOLD_BATCH } from '../modules/local/colabfold_batch'
 include { BOLTZ_FASTA } from '../modules/local/data_convertor/boltz_fasta'
 include { SPLIT_MSA } from '../modules/local/msa_manager/split_msa'
 include { IPSAE } from '../modules/local/ipsae'
-
+include {CREATE_INTERACTIONS}  from '../modules/local/data_convertor/create_interactions'
+include { MMSEQS_COLABFOLDSEARCH } from '../modules/local/mmseqs_colabfoldsearch'
 
 //
 // FUNCTIONS
@@ -105,46 +105,58 @@ workflow WISPS {
             }
     }
     log.info "Used Interactions (Sorted): ${interaction_mode.join(',')}"
-    ch_samplesheet.map{it[0]}
-        .combine(ch_samplesheet.map{it[0]})
-        .map{[
-            "id": [it[0]["id"], it[1]["id"]].min() + "-" + [it[0]["id"], it[1]["id"]].max(),
-            "group": [it[0]["group"], it[1]["group"]].min() + "-" + [it[0]["group"], it[1]["group"]].max(),
-            ]}
-        .filter{ it["group"] in interaction_mode || interaction_mode[0] == "all-all"}
-        .unique()
-        .set{ch_unique_pairs}
 
     ch_samplesheet
-    .combine(ch_samplesheet)
-    .map{[
-            [
-                "id": [it[0]["id"], it[2]["id"]].min() + "-" + [it[0]["id"], it[2]["id"]].max(),
-                "group": [it[0]["group"], it[2]["group"]].min() + "-" + [it[0]["group"], it[2]["group"]].max(),
-            ],
-            [it[0], it[2]],
-            [it[1], it[3]],
-    ]}.set{ch_pairs}
+    .multiMap{
+        if (it[1].extension == "fasta" || it[1].extension == "fa")
+            {seq = getFastaSequences(it[1].text).sequence.join(":")}
+        else if (it[1].extension == "yaml" || it[1].extension == ".yml")
+            {seq = getYamlSequences(it[1].text).sequence.join(":")}
+        else if (it[1].extension == "json")
+            {seq = ""}
 
-    ch_pairs
-    .join(ch_unique_pairs)
+        ids:it[0].id
+        types: it[0].type
+        seqs: seq
+    }.set{ch_raw_sample_sheet}
+
+
+    CREATE_INTERACTIONS(
+        ch_raw_sample_sheet.ids.collect(),
+        ch_raw_sample_sheet.types.collect(),
+        ch_raw_sample_sheet.seqs.collect()
+    )
+
+    ch_samplesheet
+    .collect(flat: false)
+    .flatMap { data_ls ->
+        def list = data_ls.toList()
+        def out = []
+        for (int i = 0; i < list.size(); i++) {
+            for (int j = i + 1; j < list.size(); j++) {
+                //print("${list[i]} - ${list[j]}")
+                if ("${[list[i][0]["id"], list[j][0]["id"]].min()}-${[list[i][0]["id"], list[j][0]["id"]].max()}" in interaction_mode || interaction_mode[0] == "all-all")
+                {
+                    out << [
+                                [
+                                "id":    list[i][0]["id"]    + "-" + list[j][0]["id"],
+                                "group": list[i][0]["group"] + "-" + list[j][0]["group"]
+                                ],
+                                [list[i][0], list[j][0]],
+                                [list[i][1], list[j][1]],
+                        ]
+                }
+            }
+        }
+        out
+    }
     .set{ch_interaction_in}
+
+
+    ch_interaction_in.count().subscribe{print("total final: ${it}")}
 
     ch_interaction_in
     .filter{it[1][0].type == "protein" && it[1][1].type == "protein"}
-    .collectFile{
-        seqs = []
-        for (j in [0, 1]){
-            if (it[2][j].extension == "fasta" || it[2][j].extension == "fa")
-                {seqs.add(getFastaSequences(it[2][j].text))}
-            else if (it[2][j].extension == "yaml" || it[2][j].extension == ".yml")
-                {seqs.add(getYamlSequences(it[2][j].text))}
-            else if (it[2][j].extension == "json")
-                {seqs.add("")}
-        }
-        [ "${it[0].id}.fasta", ">${it[0].id}\n${seqs.collect{it.sequence.join(":")}.join(":")}\n" ]
-    }
-    .map{[["id": it.baseName], it]}
     .set {ch_protein_pairs}
 
     ch_interaction_in
@@ -158,16 +170,25 @@ workflow WISPS {
     .set{ch_single_protein}
 
     //ch_protein_pairs.view()
-    MSA (
-        ch_protein_pairs
-        .mix(
-            ch_single_protein
-        ),
+
+    MMSEQS_COLABFOLDSEARCH (
+        CREATE_INTERACTIONS.out.interactions.map{[["id": "all_run"], it]},
         ch_colabfold_db,
-        ch_uniref30,
-        mmseqs_batch_size
+        ch_uniref30
     )
-    ch_versions = ch_versions.mix(MSA.out.versions)
+    ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
+
+    MMSEQS_COLABFOLDSEARCH.out.a3m
+    .map{it[1]}
+    .flatten()
+    .map{[it.baseName, it]}
+    .cross(
+        ch_protein_pairs
+        .mix(ch_single_protein)
+        .map{[it[0].id, it[0]]}
+    )
+    .map{[it[1][1], it[0][1]]}
+    .set{ch_a3m}
 
     // Prepare interactions for boltz
     ch_boltz_data = Channel.empty()
@@ -175,12 +196,26 @@ workflow WISPS {
     ch_boltz_interactions_in = Channel.empty()
 
     if ("boltz" in tools.split(",")){
-        ch_split_msa_in = MSA.out.a3m.join(ch_protein_pairs.map{it[0]})
+        ch_a3m
+        .join(ch_protein_pairs.map{it[0]})
+        .set{ch_split_msa_in}
         ch_boltz_interactions_in = ch_interaction_in
     }
 
+    split_batch_id = 0
+    SPLIT_MSA(
+        ch_split_msa_in
+        .map{it[1]}
+        .buffer( size: mmseqs_batch_size, remainder: true )
+        .map{ split_batch_id += 1; [["id" : "batch-${split_batch_id}-${it.size()}"], it]}
+    )
+
+    ch_versions = ch_versions.mix(SPLIT_MSA.out.versions)
+
     // Adding non protein for boltz
-    ch_boltz_data = ch_boltz_data.mix(ch_boltz_interactions_in
+    ch_boltz_data =
+        ch_boltz_data
+        .mix(ch_boltz_interactions_in
         .filter{it[1][0].type != "protein" && it[1][1].type != "protein"}
         .map{[it, ["", ""]]}
     )
@@ -196,7 +231,7 @@ workflow WISPS {
                 [it[1][1], it]
             }
         }
-        .combine(MSA.out.a3m.filter{it[0].type == "protein"})
+        .combine(ch_a3m.filter{it[0].type == "protein"})
         .filter{it[0] == it[2]}
         .map{
             if (it[1][1][0].type == "protein")
@@ -205,15 +240,6 @@ workflow WISPS {
                 [it[1], ["", it[3]]]
         }
     )
-    split_batch_id = 0
-    SPLIT_MSA(
-        ch_split_msa_in
-        .map{it[1]}
-        .buffer( size: mmseqs_batch_size, remainder: true )
-        .map{ split_batch_id += 1; [["id" : "batch-${split_batch_id}-${it.size()}"], it]}
-    )
-
-    ch_versions = ch_versions.mix(SPLIT_MSA.out.versions)
 
     SPLIT_MSA.out.msa_csv
     .map{it[1]}
@@ -308,7 +334,7 @@ workflow WISPS {
     ch_colabfold_interaction_in = Channel.empty()
     if ("colabfold" in tools.split(",")){
         colabfold_batch = 0
-        MSA.out.a3m.join(ch_protein_pairs.map{it[0]})
+        ch_a3m.join(ch_protein_pairs.map{it[0]})
         .map{it[1]}
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
@@ -319,6 +345,7 @@ workflow WISPS {
             ch_colabfold_interaction_in
         }
     }
+    //ch_colabfold_interaction_in.view()
 
     COLABFOLD_BATCH(
         ch_colabfold_interaction_in,
@@ -346,7 +373,7 @@ workflow WISPS {
     af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
-        MSA.out.json.join(ch_protein_pairs.map{it[0]})
+        ch_a3m.join(ch_protein_pairs.map{it[0]})
         .map{it[1]}
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
