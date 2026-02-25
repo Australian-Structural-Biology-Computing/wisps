@@ -78,6 +78,7 @@ workflow WISPS {
     ch_multiqc_methods_description
     outdir
     analysis_batch_size
+    interaction_threshold
 
     main:
     ch_multiqc_files = Channel.empty()
@@ -117,6 +118,7 @@ workflow WISPS {
 
         ids:it[0].id
         types: it[0].type
+        groups: it[0].group
         seqs: seq
     }.set{ch_raw_sample_sheet}
 
@@ -124,7 +126,10 @@ workflow WISPS {
     CREATE_INTERACTIONS(
         ch_raw_sample_sheet.ids.collect(),
         ch_raw_sample_sheet.types.collect(),
-        ch_raw_sample_sheet.seqs.collect()
+        ch_raw_sample_sheet.groups.collect(),
+        ch_raw_sample_sheet.seqs.collect(),
+        interaction_mode,
+        interaction_threshold
     )
 
     ch_samplesheet
@@ -133,14 +138,14 @@ workflow WISPS {
         def list = data_ls.toList()
         def out = []
         for (int i = 0; i < list.size(); i++) {
-            for (int j = i + 1; j < list.size(); j++) {
-                //print("${list[i]} - ${list[j]}")
-                if ("${[list[i][0]["id"], list[j][0]["id"]].min()}-${[list[i][0]["id"], list[j][0]["id"]].max()}" in interaction_mode || interaction_mode[0] == "all-all")
+            for (int j = i; j < list.size(); j++) {
+                def key = [list[i][0]['group'].toString(), list[j][0]['group'].toString()].sort().join('-')
+                if ((interaction_mode[0] != "all-all" && interaction_mode.contains(key)) || (interaction_mode[0] == "all-all" && (interaction_threshold == 0 || Math.abs(i-j) <= interaction_threshold)))
                 {
                     out << [
                                 [
                                 "id":    list[i][0]["id"]    + "-" + list[j][0]["id"],
-                                "group": list[i][0]["group"] + "-" + list[j][0]["group"]
+                                "group": key
                                 ],
                                 [list[i][0], list[j][0]],
                                 [list[i][1], list[j][1]],
@@ -189,7 +194,8 @@ workflow WISPS {
     )
     .map{[it[1][1], it[0][1]]}
     .set{ch_a3m}
-
+    ch_a3m.first().view()
+    ch_protein_pairs.first().view()
     // Prepare interactions for boltz
     ch_boltz_data = Channel.empty()
     ch_split_msa_in = Channel.empty()
