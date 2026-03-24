@@ -51,8 +51,14 @@
                 },
                 "analysis_batch_size": {
                     "type": "integer",
-                    "default": 10000,
-                    "description": "Number of samples to be processes in teh analysis after multiple single alignment",
+                    "default": 20,
+                    "description": "Number of samples to be processed in the analysis after multiple single alignment",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "interaction_threshold": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Local neighbourhood to model in all-by-all mode",
                     "fa_icon": "fas fa-microchip"
                 },
                 "use_gpu": {
@@ -84,7 +90,7 @@
                 }
             }
         },
-        "dbs_weights_ptions": {
+        "dbs_weights_options": {
             "title": "Databases options",
             "type": "object",
             "fa_icon": "fas fa-terminal",
@@ -358,7 +364,7 @@
             "$ref": "#/$defs/input_output_options"
         },
         {
-            "$ref": "#/$defs/dbs_weights_ptions"
+            "$ref": "#/$defs/dbs_weights_options"
         },
         {
             "$ref": "#/$defs/models_options"

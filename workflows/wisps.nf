@@ -194,8 +194,7 @@ workflow WISPS {
     )
     .map{[it[1][1], it[0][1]]}
     .set{ch_a3m}
-    ch_a3m.first().view()
-    ch_protein_pairs.first().view()
+
     // Prepare interactions for boltz
     ch_boltz_data = Channel.empty()
     ch_split_msa_in = Channel.empty()

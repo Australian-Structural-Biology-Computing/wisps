@@ -74,8 +74,6 @@ workflow MSA {
     )
     ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
 
-    MMSEQS_COLABFOLDSEARCH.out.a3m.view()
-    ch_input.fasta.view()
     ch_a3m = ch_a3m.mix(
         ch_input.fasta.mix(ch_input.yaml)
         .map{[it[1].baseName, it[0]]}
@@ -100,8 +98,6 @@ workflow MSA {
         )
         .map{[it[1], it[2]]}
     )
-    //MMSEQS_COLABFOLDSEARCH.out.a3m.view()
-    //ch_a3m.view()
 
     emit:
     formated_input          = ch_input.fasta.mix(ch_input.yaml)
