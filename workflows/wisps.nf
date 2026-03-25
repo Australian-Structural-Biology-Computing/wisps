@@ -411,7 +411,7 @@ workflow WISPS {
     ch_versions = ch_versions.mix(RUN_ALPHAFOLD3.out.versions)
     //since *_confidences overmatches outputs
     ch_jsons = RUN_ALPHAFOLD3.out.jsons
-        .flatMap { meta, files -> 
+        .flatMap { meta, files ->
             files.collect { f -> tuple(meta, f) }
         }
 
