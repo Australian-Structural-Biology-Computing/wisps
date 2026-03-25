@@ -55,6 +55,12 @@
                     "description": "Number of samples to be processed in the analysis after multiple single alignment",
                     "fa_icon": "fas fa-microchip"
                 },
+                "colabfold_batch_size": {
+                    "type": "integer",
+                    "default": 20,
+                    "description": "Number of ColabFold samples to be processed in the analysis after multiple single alignment",
+                    "fa_icon": "fas fa-microchip"
+                },
                 "interaction_threshold": {
                     "type": "integer",
                     "default": 0,

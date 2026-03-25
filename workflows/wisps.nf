@@ -78,6 +78,7 @@ workflow WISPS {
     ch_multiqc_methods_description
     outdir
     analysis_batch_size
+    colabfold_batch_size
     interaction_threshold
 
     main:
@@ -195,6 +196,19 @@ workflow WISPS {
     .map{[it[1][1], it[0][1]]}
     .set{ch_a3m}
 
+    MMSEQS_COLABFOLDSEARCH.out.json
+    .map{it[1]}
+    .flatten()
+    .map{[it.baseName, it]}
+    .cross(
+        ch_protein_pairs
+        .mix(ch_single_protein)
+        .map{[it[0].id, it[0]]}
+    )
+    .map{[it[1][1], it[0][1]]}
+    .set{ch_af3_json}
+
+
     // Prepare interactions for boltz
     ch_boltz_data = Channel.empty()
     ch_split_msa_in = Channel.empty()
@@ -249,7 +263,7 @@ workflow WISPS {
     SPLIT_MSA.out.msa_csv
     .map{it[1]}
     .flatten()
-    .map{[["id" : it.baseName.split("_")[0]], it]}
+    .map{[["id": it.baseName.replaceFirst(/_\d+$/, '')], it]}
     .groupTuple(sort: true)
     .set{ch_split_msa_out}
 
@@ -320,19 +334,19 @@ workflow WISPS {
     RUN_BOLTZ.out.confidence
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_boltz_")[0].split("confidence_")[1], "model": "boltz"], it]}
     .set{ch_boltz_confidence}
 
     RUN_BOLTZ.out.pae
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[1], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_boltz_")[0].split("pae_")[1], "model": "boltz"], it]}
     .set{ch_boltz_pae}
 
     RUN_BOLTZ.out.cif
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[0], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_boltz_")[0], "model": "boltz"], it]}
     .set{ch_boltz_cif}
 
     //prepare interactions for colabfold
@@ -341,7 +355,7 @@ workflow WISPS {
         colabfold_batch = 0
         ch_a3m.join(ch_protein_pairs.map{it[0]})
         .map{it[1]}
-        .buffer( size: analysis_batch_size, remainder: true )
+        .buffer( size: colabfold_batch_size, remainder: true )
         .map{
             colabfold_batch += 1;
             [["id": "batch-${colabfold_batch}-${it.size()}"], it]
@@ -365,20 +379,20 @@ workflow WISPS {
     COLABFOLD_BATCH.out.top_ranked_scores
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[0], "model": "colabfold"], it]}
+    .map{[["id": it.baseName.split("_scores_rank_")[0], "model": "colabfold"], it]}
     .set{ch_colabfold_scores}
 
     COLABFOLD_BATCH.out.pdb
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[0], "model": "colabfold"], it]}
+    .map{[["id": it.baseName.split("_unrelaxed_")[0], "model": "colabfold"], it]}
     .set{ch_colabfold_pdb}
 
 
     af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
-        ch_a3m.join(ch_protein_pairs.map{it[0]})
+        ch_af3_json.join(ch_protein_pairs.map{it[0]})
         .map{it[1]}
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
@@ -395,23 +409,39 @@ workflow WISPS {
         ch_alphafold3_params
     )
     ch_versions = ch_versions.mix(RUN_ALPHAFOLD3.out.versions)
+    //since *_confidences overmatches outputs
+    ch_jsons = RUN_ALPHAFOLD3.out.jsons
+        .flatMap { meta, files -> 
+            files.collect { f -> tuple(meta, f) }
+        }
+
+    confidence = ch_jsons
+        .filter { meta, f ->
+            f.name.endsWith('_confidences.json') &&
+            !f.name.endsWith('_summary_confidences.json')
+        }
+
+    summary_confidence = ch_jsons
+        .filter { meta, f ->
+            f.name.endsWith('_summary_confidences.json')
+        }
 
     RUN_ALPHAFOLD3.out.top_ranked_cif
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
+    .map{[["id": it.baseName.split("_model")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_cif}
 
-    RUN_ALPHAFOLD3.out.confidence
+    confidence
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
+    .map{[["id": it.baseName.split("_confidences")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_confidence}
 
-    RUN_ALPHAFOLD3.out.summary_confidences
+    summary_confidence
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_")[0], "model": "alphafold3"], it]}
+    .map{[["id": it.baseName.split("_summary_confidences")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_summary_confidences}
 
 
@@ -477,32 +507,62 @@ workflow WISPS {
         boltz: it[0].model == "boltz"
             lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
             max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
-            return [it[1].baseName.split("_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+            return [it[1].baseName.split("_boltz_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
 
         alphafold3: it[0].model == "alphafold3"
             lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
             max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
-            return [it[1].baseName.split("_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+            return [it[1].baseName.split("_model_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
 
         colabfold: it[0].model == "colabfold"
             lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
             max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
-            return [it[1].baseName.split("_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+            return [it[1].baseName.split("_unrelaxed_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
     }
     .set{ch_ipsae_out}
 
-    ch_interaction_in.map{it[0].id}
-    .join(ch_ipsae_out.boltz, remainder: true)
-    .join(ch_ipsae_out.colabfold, remainder: true)
-    .join(ch_ipsae_out.alphafold3, remainder: true)
-    .map{"${it[0]},${it[1] != null ? it[1] : ""},${ it[2] != null ? it[2] : ""},${ it[3] != null ? it[3] : ""}\n"}
+    def active_modes = tools
+    .split(',')
+    .collect { it.trim() }
+    .findAll { it in ['boltz','colabfold','alphafold3'] }
+
+    def header = "Sample," + active_modes.collect { "${it}_ipsae" }.join(",") + "\n"
+
+    // 1) Long format: [sample_id, model, score]
+    ch_long = Channel.empty()
+    if ('boltz' in active_modes)
+        ch_long = ch_long.mix(ch_ipsae_out.boltz.map { id, score -> [id, 'boltz', score] })
+    if ('colabfold' in active_modes)
+        ch_long = ch_long.mix(ch_ipsae_out.colabfold.map { id, score -> [id, 'colabfold', score] })
+    if ('alphafold3' in active_modes)
+        ch_long = ch_long.mix(ch_ipsae_out.alphafold3.map { id, score -> [id, 'alphafold3', score] })
+
+    // 2) Pivot per sample: [sample_id, modelScoreMap]
+    ch_wide = ch_long
+        .map { id, model, score -> [id, [model, score]] }
+        .groupTuple()
+        .map { id, pairs ->
+            def m = pairs.collectEntries { p -> [(p[0]): p[1]] }
+            [id, m]
+        }
+
+    // 3) Left-join against all expected samples and render rows by active_modes order
+    ch_interaction_in.map { it[0].id }.unique().map { [it, true] }
+        .join(ch_wide, remainder: true)
+        .map { id, _, m ->
+            def mm = m ?: [:]
+            def vals = active_modes.collect { mode -> mm[mode] != null ? mm[mode] : "" }
+            "${id},${vals.join(',')}\n"
+        }
         .toSortedList()
-        .flatten()
+        .flatMap{ it }
         .collectFile(
             storeDir: "${outdir}/ipsae",
             name: 'ipsae_scores.csv',
-            seed: "Sample,boltz_ipsae,colabfold_ipsae,alphafold3_ipsae\n")
-    .set{ch_ipsae_scores}
+            seed: header
+        )
+        .set { ch_ipsae_scores }
+
 
     ch_boltz_confidence
     .collect(flat: false, sort: true).multiMap{json_list ->

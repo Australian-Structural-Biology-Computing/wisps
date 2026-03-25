@@ -14,7 +14,7 @@ process COLABFOLD_BATCH {
     val   numRec
 
     output:
-    tuple val(meta), path ("*relaxed_rank*_model_1_*.pdb")     , emit: pdb
+    tuple val(meta), path ("*relaxed_rank_001_*_model_*.pdb")     , emit: pdb
     tuple val(meta), path ("*_coverage.png")          , emit: msa
     tuple val(meta), path ("*_scores_rank_001_*.json")    , emit: top_ranked_scores
     path "versions.yml"                               , emit: versions

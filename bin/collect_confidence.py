@@ -168,13 +168,13 @@ def main():
     json_files = [str(f) for f in Path(args.input).glob("*.json") if f.is_file()]
 
     if args.model.lower() == "boltz":
-        samples = [Path(p).name.split("_")[1] for p in json_files]
+        samples = [Path(p).name.split("_boltz_")[0].split("confidence_")[1] for p in json_files]
         extract_boltz_results(json_files, samples, args.output)
     elif args.model.lower() == "colabfold":
-        samples = [Path(p).name.split("_")[0] for p in json_files]
+        samples = [Path(p).name.split("_scores_")[0] for p in json_files]
         extract_colabfold_results(json_files, samples, args.output)
     elif args.model.lower() == "alphafold3":
-        samples = [Path(p).name.split("_")[0] for p in json_files]
+        samples = [Path(p).name.split("_summary_confidences.json")[0] for p in json_files]
         extract_alphafold3_results(json_files, samples, args.output)
 
     print(f"CSV file created at: {args.output}")
