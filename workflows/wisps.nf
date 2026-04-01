@@ -331,6 +331,12 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_boltz_")[0].split("confidence_")[1], "model": "boltz"], it]}
     .set{ch_boltz_confidence}
+    
+    RUN_BOLTZ.out.affinity
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_boltz_")[0].split("affinity_")[1], "model": "boltz"], it]}
+    .set{ch_boltz_affinity}
 
     RUN_BOLTZ.out.pae
     .map{it[1]}
@@ -556,8 +562,9 @@ workflow WISPS {
 
 
     ch_boltz_confidence
+    .mix(ch_boltz_affinity)
     .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
+        ids: json_list.collect{it[0].id}.unique()
         json: json_list.collect{it[1]}
     }.set{ch_boltz_confidence_scores}
 

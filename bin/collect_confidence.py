@@ -4,6 +4,7 @@ import os, sys
 import json
 import csv
 import statistics
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable
 import argparse
@@ -56,36 +57,75 @@ def flatten_deep(
     _walk("", data)
     return flat
 
-def extract_boltz_results(json_files, samples, output_csv):
-    rows = []
+def parse_boltz_json_file(json_file):
+    name = Path(json_file).name
+    if name.startswith("confidence_") and "_boltz_" in name:
+        return "confidence", name.split("_boltz_")[0].split("confidence_")[1]
+    if name.startswith("affinity_") and "_boltz_" in name:
+        return "affinity", name.split("_boltz_")[0].split("affinity_")[1]
+
+    m = re.match(r"confidence_(.+?)_model_\d+\.json$", name)
+    if m:
+        return "confidence", m.group(1)
+    m = re.match(r"affinity_(.+?)_model_\d+\.json$", name)
+    if m:
+        return "affinity", m.group(1)
+    return None, None
+
+def extract_boltz_results(json_files, output_csv):
+    rows_by_id = {}
     all_keys = ["confidence_score", "ptm", "iptm", "ligand_iptm", "protein_iptm", "complex_plddt", "complex_iplddt", "complex_pde", "complex_ipde", "chains_ptm"]
     writing_keys = ["id", "confidence_score", "ptm", "iptm", "ligand_iptm", "protein_iptm", "complex_plddt", "complex_iplddt", "complex_pde", "complex_ipde"]
     writing_keys_extra = set()
-    # First pass: read and collect keys
-    cntr = 0
+
     for file in json_files:
+        record_type, sample_id = parse_boltz_json_file(file)
+        if sample_id is None:
+            continue
+
+        if sample_id not in rows_by_id:
+            rows_by_id[sample_id] = {"id": sample_id}
+
         with open(file) as f:
             data = json.load(f)
-            flat_data = {"id": samples[cntr]}
-            cntr += 1
-            for key, value in data.items():
-                if key not in all_keys:
-                    continue
-                if isinstance(value, dict):
-                    for sub_key, sub_value in value.items():
-                        flat_data[f"{key}_{sub_key}"] = sub_value
-                        writing_keys_extra.add(f"{key}_{sub_key}")
-                else:
-                    flat_data[key] = value
-            rows.append(flat_data)
+            flat_data = rows_by_id[sample_id]
+
+            if record_type == "confidence":
+                for key, value in data.items():
+                    if key not in all_keys:
+                        continue
+                    if isinstance(value, dict):
+                        for sub_key, sub_value in value.items():
+                            key_name = f"{key}_{sub_key}"
+                            flat_data[key_name] = sub_value
+                            writing_keys_extra.add(key_name)
+                    else:
+                        flat_data[key] = value
+
+            elif record_type == "affinity":
+                for key, value in data.items():
+                    if isinstance(value, dict) or isinstance(value, list):
+                        sub_data = flatten_deep(value, index_lists=True)
+                        for sub_key, sub_value in sub_data.items():
+                            key_name = f"{key}_{sub_key}"
+                            if not key_name.startswith("affinity_"):
+                                key_name = f"affinity_{key_name}"
+                            flat_data[key_name] = sub_value
+                            writing_keys_extra.add(key_name)
+                    else:
+                        key_name = key if key.startswith("affinity_") else f"affinity_{key}"
+                        flat_data[key_name] = value
+                        writing_keys_extra.add(key_name)
 
     # Write to CSV
+    final_writing_vals = writing_keys + sorted(writing_keys_extra - set(writing_keys))
 
     with open(output_csv, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=writing_keys + sorted(writing_keys_extra))
+        writer = csv.DictWriter(f, fieldnames=final_writing_vals)
         writer.writeheader()
-        for row in rows:
-            writer.writerow({key: row.get(key, "") for key in writing_keys})
+        for sample_id in sorted(rows_by_id.keys()):
+            row = rows_by_id[sample_id]
+            writer.writerow({key: row.get(key, "") for key in final_writing_vals})
 
 def extract_colabfold_results(json_files, samples, output_csv):
     def parse_colabfold_metrics(json_file):
@@ -168,8 +208,7 @@ def main():
     json_files = [str(f) for f in Path(args.input).glob("*.json") if f.is_file()]
 
     if args.model.lower() == "boltz":
-        samples = [Path(p).name.split("_boltz_")[0].split("confidence_")[1] for p in json_files]
-        extract_boltz_results(json_files, samples, args.output)
+        extract_boltz_results(json_files, args.output)
     elif args.model.lower() == "colabfold":
         samples = [Path(p).name.split("_scores_")[0] for p in json_files]
         extract_colabfold_results(json_files, samples, args.output)
