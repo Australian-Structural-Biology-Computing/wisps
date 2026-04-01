@@ -191,18 +191,6 @@
                     "maximum": 20,
                     "errorMessage": "Number of recycles must be a whole number between 1 and 20"
                 },
-                "colabfold_model_preset": {
-                    "type": "string",
-                    "default": "alphafold2_multimer_v3",
-                    "description": "Model preset for 'colabfold' mode",
-                    "enum": [
-                        "alphafold2_ptm",
-                        "alphafold2_multimer_v1",
-                        "alphafold2_multimer_v2",
-                        "alphafold2_multimer_v3"
-                    ],
-                    "fa_icon": "fas fa-stream"
-                },
                 "colabfold_search_args": {
                     "type": "string",
                     "default": null,

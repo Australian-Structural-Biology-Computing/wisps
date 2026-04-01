@@ -67,7 +67,6 @@ workflow WISPS {
     ch_colabfold_db
     ch_uniref30
     mmseqs_batch_size
-    colabfold_model_preset
     ch_colabfold_params
     num_recycles
     ch_alphafold3_params
@@ -364,14 +363,10 @@ workflow WISPS {
             ch_colabfold_interaction_in
         }
     }
-    //ch_colabfold_interaction_in.view()
 
     COLABFOLD_BATCH(
         ch_colabfold_interaction_in,
-        colabfold_model_preset,
         ch_colabfold_params,
-        [],
-        [],
         num_recycles
     )
     ch_versions = ch_versions.mix(COLABFOLD_BATCH.out.versions)

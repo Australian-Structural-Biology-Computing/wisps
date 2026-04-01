@@ -7,10 +7,7 @@ process COLABFOLD_BATCH {
 
     input:
     tuple val(meta), path("alignment/*")
-    val   colabfold_model_preset
     path  ('params/*')
-    path  ('colabfold_db/*')
-    path  ('uniref30/*')
     val   numRec
 
     output:
@@ -32,12 +29,14 @@ process COLABFOLD_BATCH {
     """
     ln -s \$(realpath params/alphafold_params_*/*) params/
     touch params/download_finished.txt
+    touch params/download_complexes_multimer_v3_finished.txt
+    touch params/download_complexes_multimer_v2_finished.txt
+    touch params/download_complexes_multimer_v1_finished.txt
 
     colabfold_batch \\
         $args \\
         --num-recycle ${numRec} \\
         --data \$PWD \\
-        --model-type ${colabfold_model_preset} \\
         alignment \\
         \$PWD
 
