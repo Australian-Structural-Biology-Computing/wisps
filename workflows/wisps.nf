@@ -59,8 +59,6 @@ workflow WISPS {
     ch_samplesheet
     mode
     ch_versions
-    ch_boltz_ccd
-    ch_boltz_model
     ch_boltz2_aff
     ch_boltz2_conf
     ch_mols
@@ -306,7 +304,7 @@ workflow WISPS {
 
     )
 
-    PREPARE_INTERACTIONS.out.fasta
+    PREPARE_INTERACTIONS.out.yaml
     .map{it[1]}
     .flatten()
     .map{[it.baseName.replace("_boltz_interaction_input", ""), it]}
@@ -322,8 +320,6 @@ workflow WISPS {
     RUN_BOLTZ(
         ch_boltz_in.map{boltz_batch += 1; [["id": "batch-${boltz_batch}-${it.size()}"], it.collect{it[1]}]},
         ch_boltz_in.map{it.collect{it[2]}.flatten().findAll{it}.unique{it.toUriString()}},
-        ch_boltz_model,
-        ch_boltz_ccd,
         ch_boltz2_aff,
         ch_boltz2_conf,
         ch_mols
@@ -335,6 +331,12 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_boltz_")[0].split("confidence_")[1], "model": "boltz"], it]}
     .set{ch_boltz_confidence}
+    
+    RUN_BOLTZ.out.affinity
+    .map{it[1]}
+    .flatten()
+    .map{[["id": it.baseName.split("_boltz_")[0].split("affinity_")[1], "model": "boltz"], it]}
+    .set{ch_boltz_affinity}
 
     RUN_BOLTZ.out.pae
     .map{it[1]}
@@ -560,8 +562,9 @@ workflow WISPS {
 
 
     ch_boltz_confidence
+    .mix(ch_boltz_affinity)
     .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
+        ids: json_list.collect{it[0].id}.unique()
         json: json_list.collect{it[1]}
     }.set{ch_boltz_confidence_scores}
 

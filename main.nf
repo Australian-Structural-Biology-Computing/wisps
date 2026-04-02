@@ -44,8 +44,6 @@ workflow NFCORE_WISPS {
             ch_samplesheet,
             params.mode,
             ch_versions,
-            Channel.fromPath(params.boltz_ccd, checkIfExists: true).first(),
-            Channel.fromPath(params.boltz_model, checkIfExists: true).first(),
             Channel.fromPath(params.boltz2_aff, checkIfExists: true).first(),
             Channel.fromPath(params.boltz2_conf, checkIfExists: true).first(),
             Channel.fromPath(params.boltz2_mols, checkIfExists: true).first(),

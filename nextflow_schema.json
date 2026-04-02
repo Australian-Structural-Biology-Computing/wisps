@@ -143,18 +143,6 @@
                     "description": "Link to the Alphafold2 parameters for Colabfold",
                     "fa_icon": "fas fa-folder-open"
                 },
-                "boltz_ccd": {
-                    "type": "string",
-                    "description": "Path to CCD file",
-                    "icon": "fas folder-open",
-                    "default": "https://huggingface.co/boltz-community/boltz-1/resolve/main/ccd.pkl"
-                },
-                "boltz_model": {
-                    "type": "string",
-                    "description": "Path to boltz Model file",
-                    "icon": "fas folder-open",
-                    "default": "https://huggingface.co/boltz-community/boltz-1/resolve/main/boltz1_conf.ckpt"
-                },
                 "boltz2_aff": {
                     "type": "string",
                     "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_aff.ckpt",

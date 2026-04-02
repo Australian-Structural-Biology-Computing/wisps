@@ -11,8 +11,6 @@ process RUN_BOLTZ {
     input:
     tuple val(meta), path("fasta/*")
     path(alignments)
-    path ('boltz1_conf.ckpt')
-    path ('ccd.pkl')
     path ('boltz2_aff.ckpt')
     path ('boltz2_conf.ckpt')
     path ('mols')
@@ -25,6 +23,7 @@ process RUN_BOLTZ {
     tuple val(meta), path ("boltz_results_*/predictions/*/*model_0.cif")        , optional: true, emit: cif
     tuple val(meta), path ("boltz_results_*/predictions/*/plddt_*model_0.npz")  , emit: plddt
     tuple val(meta), path ("boltz_results_*/predictions/*/pae_*model_0.npz")    , optional: true, emit: pae
+    tuple val(meta), path ("boltz_results_*/predictions/*/affinity_*.json")     , optional: true, emit: affinity
 
     path "versions.yml", emit: versions
 
@@ -41,6 +40,7 @@ process RUN_BOLTZ {
     """
     export NUMBA_CACHE_DIR=./tmp
     export HOME=./tmp
+    touch mols.tar
 
     boltz predict fasta ${args} --cache ./
 
