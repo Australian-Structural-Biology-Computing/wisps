@@ -43,12 +43,6 @@
                     "fa_icon": "fas fa-cogs",
                     "errorMessage": "Tools must be a comma-separated list containing any combination of 'alphafold3', 'colabfold', or 'boltz' with no spaces."
                 },
-                "mmseqs_batch_size": {
-                    "type": "integer",
-                    "default": 10000,
-                    "description": "Number of samples in each mmseq run (batching leads to higher performance time in total.)",
-                    "fa_icon": "fas fa-microchip"
-                },
                 "analysis_batch_size": {
                     "type": "integer",
                     "default": 20,

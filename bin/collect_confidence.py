@@ -67,7 +67,7 @@ def parse_boltz_json_file(json_file):
     m = re.match(r"confidence_(.+?)_model_\d+\.json$", name)
     if m:
         return "confidence", m.group(1)
-    m = re.match(r"affinity_(.+?)_model_\d+\.json$", name)
+    m = re.match(r"affinity_(.+?)\.json$", name)
     if m:
         return "affinity", m.group(1)
     return None, None

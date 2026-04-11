@@ -32,10 +32,33 @@ process CREATE_INTERACTIONS {
     ids = [${"\"" + ids.join('", "') + "\""}]
     types = [${"\"" + types.join('", "') + "\""}]
     groups = [${"\"" + groups.join('", "') + "\""}]
-    done_singles = set()
     n = len(seqs)
     interactions_cntr = 0
     group_ls = {part for s in groups for part in s.split("-")}
+
+    def format_non_protein_entry(entity_type, entity_seq):
+        supported = {"dna", "rna", "ccd", "smiles"}
+        parsed_type = entity_type.lower()
+        parsed_seq = entity_seq
+
+        # If sequence is already in colabfold format, keep it and normalize type.
+        if "|" in entity_seq:
+            parts = entity_seq.split("|")
+            if len(parts) > 1 and parts[0].lower() in supported:
+                parsed_type = parts[0].lower()
+                parsed_seq = "|".join(parts[1:])
+
+        if parsed_type == "smiles":
+            # ColabFold expects aromatic bonds to be written with ';' instead of ':'.
+            if "|" in parsed_seq:
+                smi_parts = parsed_seq.split("|")
+                smi_parts[0] = smi_parts[0].replace(":", ";")
+                parsed_seq = "|".join(smi_parts)
+            else:
+                parsed_seq = parsed_seq.replace(":", ";")
+
+        return f"{parsed_type}|{parsed_seq}"
+
     with open("interactions.fasta", "w") as target_interactions:
         for i in range(n):
             for j in range(i, n):
@@ -47,13 +70,13 @@ process CREATE_INTERACTIONS {
                     if types[i] == "protein" and types[j] == "protein":
                         target_interactions.write(f">{ids[i]}-{ids[j]}\\n{seqs[i]}:{seqs[j]}\\n")
                     elif types[i] == "protein":
-                        if ids[i] not in done_singles:
-                            target_interactions.write(f">{ids[i]}\\n{seqs[i]}\\n")
-                            done_singles.add(ids[i])
+                        target_interactions.write(
+                            f">{ids[i]}-{ids[j]}\\n{seqs[i]}:{format_non_protein_entry(types[j], seqs[j])}\\n"
+                        )
                     elif types[j] == "protein":
-                        if ids[j] not in done_singles:
-                            target_interactions.write(f">{ids[j]}\\n{seqs[j]}\\n")
-                            done_singles.add(ids[j])
+                        target_interactions.write(
+                            f">{ids[i]}-{ids[j]}\\n{format_non_protein_entry(types[i], seqs[i])}:{seqs[j]}\\n"
+                        )
     if interactions_cntr == 0:
         print("No Interactions found!!")
         exit(1)

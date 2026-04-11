@@ -18,7 +18,6 @@
 // MODULE: Installed directly from nf-core/modules
 //
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
-include { PREPARE_INTERACTIONS } from '../modules/local/prepare_interactions'
 include { COLLECT_CONFIDENCE } from '../modules/local/collect_confidence'
 //
 // SUBWORKFLOW: Consisting entirely of nf-core/modules
@@ -35,7 +34,6 @@ include { RUN_BOLTZ } from '../modules/local/run_boltz'
 include { RUN_ALPHAFOLD3 } from '../modules/local/run_alphafold3'
 include { COLABFOLD_BATCH } from '../modules/local/colabfold_batch'
 include { BOLTZ_FASTA } from '../modules/local/data_convertor/boltz_fasta'
-include { SPLIT_MSA } from '../modules/local/msa_manager/split_msa'
 include { IPSAE } from '../modules/local/ipsae'
 include {CREATE_INTERACTIONS}  from '../modules/local/data_convertor/create_interactions'
 include { MMSEQS_COLABFOLDSEARCH } from '../modules/local/mmseqs_colabfoldsearch'
@@ -64,7 +62,6 @@ workflow WISPS {
     ch_mols
     ch_colabfold_db
     ch_uniref30
-    mmseqs_batch_size
     ch_colabfold_params
     num_recycles
     ch_alphafold3_params
@@ -172,8 +169,6 @@ workflow WISPS {
     }.unique()
     .set{ch_single_protein}
 
-    //ch_protein_pairs.view()
-
     MMSEQS_COLABFOLDSEARCH (
         CREATE_INTERACTIONS.out.interactions.map{[["id": "all_run"], it]},
         ch_colabfold_db,
@@ -197,123 +192,28 @@ workflow WISPS {
     .map{it[1]}
     .flatten()
     .map{[it.baseName, it]}
-    .cross(
-        ch_protein_pairs
-        .mix(ch_single_protein)
-        .map{[it[0].id, it[0]]}
-    )
-    .map{[it[1][1], it[0][1]]}
     .set{ch_af3_json}
 
 
-    // Prepare interactions for boltz
-    ch_boltz_data = Channel.empty()
-    ch_split_msa_in = Channel.empty()
-    ch_boltz_interactions_in = Channel.empty()
-
+    // Prepare interactions for boltz directly from MMSEQS outputs
+    ch_boltz_in = Channel.empty()
     if ("boltz" in tools.split(",")){
-        ch_a3m
-        .join(ch_protein_pairs.map{it[0]})
-        .set{ch_split_msa_in}
-        ch_boltz_interactions_in = ch_interaction_in
-    }
-
-    split_batch_id = 0
-    SPLIT_MSA(
-        ch_split_msa_in
+        MMSEQS_COLABFOLDSEARCH.out.yaml
         .map{it[1]}
-        .buffer( size: mmseqs_batch_size, remainder: true )
-        .map{ split_batch_id += 1; [["id" : "batch-${split_batch_id}-${it.size()}"], it]}
-    )
-
-    ch_versions = ch_versions.mix(SPLIT_MSA.out.versions)
-
-    // Adding non protein for boltz
-    ch_boltz_data =
-        ch_boltz_data
-        .mix(ch_boltz_interactions_in
-        .filter{it[1][0].type != "protein" && it[1][1].type != "protein"}
-        .map{[it, ["", ""]]}
-    )
-
-    // Adding single protein for boltz
-    ch_boltz_data = ch_boltz_data.mix(
-        ch_boltz_interactions_in
-        .filter{[it[1][0].type, it[1][1].type].count("protein") == 1}
-        .map{
-            if (it[1][0].type == "protein"){
-                [it[1][0], it]
-            }else if (it[1][1].type == "protein"){
-                [it[1][1], it]
-            }
-        }
-        .combine(ch_a3m.filter{it[0].type == "protein"})
-        .filter{it[0] == it[2]}
-        .map{
-            if (it[1][1][0].type == "protein")
-                [it[1], [it[3], ""]]
-            else
-                [it[1], ["", it[3]]]
-        }
-    )
-
-    SPLIT_MSA.out.msa_csv
-    .map{it[1]}
-    .flatten()
-    .map{[["id": it.baseName.replaceFirst(/_\d+$/, '')], it]}
-    .groupTuple(sort: true)
-    .set{ch_split_msa_out}
-
-    ch_boltz_data = ch_boltz_data
-        .mix(ch_boltz_interactions_in
-        .filter{it[1][0].type == "protein" && it[1][1].type == "protein"}
-        .map{[["id": it[0].id], it]}
+        .flatten()
+        .map{[it.baseName, it]}
         .join(
-            ch_split_msa_out
-            .map{
-                if (it[1].size() == 1){
-                    it[1] = [it[1][0], it[1][0]]
-                }
-                it
-            }
-
+            MMSEQS_COLABFOLDSEARCH.out.msa_csv
+            .map{it[1]}
+            .flatten()
+            .map{[it.baseName.replaceFirst(/_[A-Z]+$/, '').replace("_boltz_interaction_input", ""), it]}
+            .groupTuple(sort: true),
+            remainder: true
         )
-        .map{[it[1], it[2]]}
-    )
-
-    batch_id = 0
-
-    PREPARE_INTERACTIONS(
-        ch_boltz_data
-            .map{it[0][0].id}
-            .buffer( size: analysis_batch_size, remainder: true )
-            .map{ batch_id += 1; [["id" : "batch-${batch_id}-${it.size()}"], it]},
-        ch_boltz_data
-            .map{it[0][2].collect{it.name}}
-            .buffer( size: analysis_batch_size, remainder: true ),
-        ch_boltz_data
-            .map{it[1].collect{it ? it.name: ""}}
-            .buffer( size: analysis_batch_size, remainder: true ),
-        ch_boltz_data
-            .map{[it[0][1][0].type, it[0][1][1].type]}
-            .buffer( size: analysis_batch_size, remainder: true ),
-        ch_boltz_data
-            .map{[it[0][2][0], it[0][2][1], it[1][0], it[1][1]]}
-            .buffer( size: analysis_batch_size, remainder: true )
-            .map{it.flatten()findAll{it}.unique{it.toUriString()}}
-
-    )
-
-    PREPARE_INTERACTIONS.out.yaml
-    .map{it[1]}
-    .flatten()
-    .map{[it.baseName.replace("_boltz_interaction_input", ""), it]}
-    .join(
-        ch_boltz_data
-        .map{[it[0][0].id, [it[1][0], it[1][1]]]}
-    )
-    .buffer( size: analysis_batch_size, remainder: true )
-    .set{ch_boltz_in}
+        .map{id, yaml, msa_csv -> [id, yaml, msa_csv ?: []]}
+        .buffer( size: analysis_batch_size, remainder: true )
+        .set{ch_boltz_in}
+    }
 
     boltz_batch = 0
 
@@ -389,7 +289,8 @@ workflow WISPS {
     af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
-        ch_af3_json.join(ch_protein_pairs.map{it[0]})
+        //ch_af3_json.join(ch_protein_pairs.map{it[0]})
+        ch_af3_json
         .map{it[1]}
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
