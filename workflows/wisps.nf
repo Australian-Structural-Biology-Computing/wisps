@@ -375,15 +375,15 @@ workflow WISPS {
 
 
     ipsae_batch = 0
+    ch_protein_interaction_by_id = ch_interaction_in
+        .filter { it[1] }
+        .map { [it[0].id, it[0]] }
 
     ch_colabfold_scores
     .join(ch_colabfold_pdb)
-    .map{[["id": it[0].id], it]}
-    .join(ch_interaction_in
-        .filter{it[1]}
-        .map{it[0]}
-    )
-    .map{[it[1][1], it[1][2], []]}
+    .map { [it[0].id, it[1], it[2]] }
+    .join(ch_protein_interaction_by_id)
+    .map { id, score_json, pdb_file, _ -> [score_json, pdb_file, []] }
     .buffer( size: analysis_batch_size, remainder: true )
     .map{
         ipsae_batch += 1;
@@ -393,12 +393,9 @@ workflow WISPS {
         ch_boltz_pae
         .join(ch_boltz_cif)
         .join(ch_boltz_confidence)
-        .map{[["id": it[0].id], [it[0], it[1], it[2]], it[3]]}
-        .join(ch_interaction_in
-            .filter{it[1]}
-            .map{it[0]}
-        )
-        .map{[it[1][1], it[1][2], it[2]]}
+        .map { [it[0].id, it[1], it[2], it[3]] }
+        .join(ch_protein_interaction_by_id)
+        .map { id, pae_file, cif_file, confidence_json, _ -> [pae_file, cif_file, confidence_json] }
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
             ipsae_batch += 1;
@@ -407,12 +404,9 @@ workflow WISPS {
     )
     .mix(
         ch_alphafold3_confidence.join(ch_alphafold3_cif)
-        .map{[["id": it[0].id], it]}
-        .join(ch_interaction_in
-            .filter{it[1]}
-            .map{it[0]}
-        )
-        .map{[it[1][1], it[1][2], []]}
+        .map { [it[0].id, it[1], it[2]] }
+        .join(ch_protein_interaction_by_id)
+        .map { id, confidence_json, cif_file, _ -> [confidence_json, cif_file, []] }
         .buffer( size: analysis_batch_size, remainder: true )
         .map{
             ipsae_batch += 1;
