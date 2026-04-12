@@ -127,26 +127,28 @@ workflow WISPS {
         interaction_threshold
     )
 
-    ch_samplesheet
-    .collect(flat: false)
-    .flatMap { data_ls ->
-        def list = data_ls.toList()
+    CREATE_INTERACTIONS.out.interactions
+    .flatMap { interactions_fasta ->
         def out = []
-        for (int i = 0; i < list.size(); i++) {
-            for (int j = i; j < list.size(); j++) {
-                def key = [list[i][0]['group'].toString(), list[j][0]['group'].toString()].sort().join('-')
-                if ((interaction_mode[0] != "all-all" && interaction_mode.contains(key)) || (interaction_mode[0] == "all-all" && (interaction_threshold == 0 || Math.abs(i-j) <= interaction_threshold)))
-                {
-                    out << [
-                                [
-                                "id":    list[i][0]["id"]    + "-" + list[j][0]["id"],
-                                "group": key
-                                ],
-                                [list[i][0], list[j][0]],
-                                [list[i][1], list[j][1]],
-                        ]
-                }
+        def lines = interactions_fasta.readLines().findAll { it?.trim() }
+        if (lines.size() % 2 != 0) {
+            throw new IllegalStateException("Invalid interactions FASTA layout in ${interactions_fasta}: expected an even number of non-empty lines.")
+        }
+
+        lines.collate(2).each { chunk ->
+            def header = chunk[0]
+            if (!header.startsWith(">")) {
+                throw new IllegalStateException("Invalid FASTA header in ${interactions_fasta}: '${header}'")
             }
+
+            def interaction_id = header.substring(1).trim()
+            def sequence_line = chunk[1].trim()
+            //def has_protein = sequence_line.split(":").any { !it.contains("|") }
+            def has_protein = sequence_line.split(":").count { !it.contains("|") } > 1
+            out << [
+                ["id": interaction_id],
+                has_protein
+            ]
         }
         out
     }
@@ -154,20 +156,6 @@ workflow WISPS {
 
 
     ch_interaction_in.count().subscribe{print("total final: ${it}")}
-
-    ch_interaction_in
-    .filter{it[1][0].type == "protein" && it[1][1].type == "protein"}
-    .set {ch_protein_pairs}
-
-    ch_interaction_in
-    .map{
-        if (it[1][0].type != "protein" && it[1][1].type == "protein"){
-            [it[1][1], it[2][1]]
-        }else if (it[1][1].type != "protein" && it[1][0].type == "protein"){
-            [it[1][0], it[2][0]]
-        }
-    }.unique()
-    .set{ch_single_protein}
 
     MMSEQS_COLABFOLDSEARCH (
         CREATE_INTERACTIONS.out.interactions.map{[["id": "all_run"], it]},
@@ -180,12 +168,6 @@ workflow WISPS {
     .map{it[1]}
     .flatten()
     .map{[it.baseName, it]}
-    .cross(
-        ch_protein_pairs
-        .mix(ch_single_protein)
-        .map{[it[0].id, it[0]]}
-    )
-    .map{[it[1][1], it[0][1]]}
     .set{ch_a3m}
 
     MMSEQS_COLABFOLDSEARCH.out.json
@@ -229,32 +211,33 @@ workflow WISPS {
     RUN_BOLTZ.out.confidence
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_boltz_")[0].split("confidence_")[1], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_model_0")[0].split("confidence_")[1], "model": "boltz"], it]}
     .set{ch_boltz_confidence}
     
     RUN_BOLTZ.out.affinity
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_boltz_")[0].split("affinity_")[1], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_model_0")[0].split("affinity_")[1], "model": "boltz"], it]}
     .set{ch_boltz_affinity}
 
     RUN_BOLTZ.out.pae
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_boltz_")[0].split("pae_")[1], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_model_0")[0].split("pae_")[1], "model": "boltz"], it]}
     .set{ch_boltz_pae}
 
     RUN_BOLTZ.out.cif
     .map{it[1]}
     .flatten()
-    .map{[["id": it.baseName.split("_boltz_")[0], "model": "boltz"], it]}
+    .map{[["id": it.baseName.split("_model_0")[0], "model": "boltz"], it]}
     .set{ch_boltz_cif}
 
     //prepare interactions for colabfold
     ch_colabfold_interaction_in = Channel.empty()
     if ("colabfold" in tools.split(",")){
         colabfold_batch = 0
-        ch_a3m.join(ch_protein_pairs.map{it[0]})
+        //ch_a3m.join(ch_protein_pairs.map{it[0]})
+        ch_a3m
         .map{it[1]}
         .buffer( size: colabfold_batch_size, remainder: true )
         .map{
@@ -349,8 +332,8 @@ workflow WISPS {
     .join(ch_colabfold_pdb)
     .map{[["id": it[0].id], it]}
     .join(ch_interaction_in
-        .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
-        .map{["id": it[0].id]}
+        .filter{it[1]}
+        .map{it[0]}
     )
     .map{[it[1][1], it[1][2], []]}
     .buffer( size: analysis_batch_size, remainder: true )
@@ -364,8 +347,8 @@ workflow WISPS {
         .join(ch_boltz_confidence)
         .map{[["id": it[0].id], [it[0], it[1], it[2]], it[3]]}
         .join(ch_interaction_in
-            .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
-            .map{["id": it[0].id]}
+            .filter{it[1]}
+            .map{it[0]}
         )
         .map{[it[1][1], it[1][2], it[2]]}
         .buffer( size: analysis_batch_size, remainder: true )
@@ -378,8 +361,8 @@ workflow WISPS {
         ch_alphafold3_confidence.join(ch_alphafold3_cif)
         .map{[["id": it[0].id], it]}
         .join(ch_interaction_in
-            .filter{it[1][0].type == "protein" || it[1][1].type == "protein"}
-            .map{["id": it[0].id]}
+            .filter{it[1]}
+            .map{it[0]}
         )
         .map{[it[1][1], it[1][2], []]}
         .buffer( size: analysis_batch_size, remainder: true )
@@ -399,23 +382,32 @@ workflow WISPS {
 
     ch_versions = ch_versions.mix(IPSAE.out.versions)
 
+    def parseIpsaeMaxRows = { file, model, sampleId ->
+        def lines = file.text
+            .split("\n")
+            .findAll { line ->
+                def cols = line.split()
+                cols.size() > 5 && cols[4].trim() == "max"
+            }
+        def entries = lines.collect { line ->
+            def cols = line.split()
+            def pairId = "${cols[0].trim()}_${cols[1].trim()}"
+            [pairId, new BigDecimal(cols[5].trim())]
+        }
+        [sampleId, entries]
+    }
+
     IPSAE.out.txt
     .transpose()
     .branch {
         boltz: it[0].model == "boltz"
-            lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
-            max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
-            return [it[1].baseName.split("_boltz_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+            return parseIpsaeMaxRows(it[1], "boltz", it[1].baseName.split("_model_0")[0])
 
         alphafold3: it[0].model == "alphafold3"
-            lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
-            max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
-            return [it[1].baseName.split("_model_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+            return parseIpsaeMaxRows(it[1], "alphafold3", it[1].baseName.split("_model_")[0])
 
         colabfold: it[0].model == "colabfold"
-            lines = it[1].text.split("\n").findAll{line -> line.split().size() > 4 && line.split()[4].trim() == "max" }
-            max_vals = lines.collect{new BigDecimal(it.split()[5].trim())}
-            return [it[1].baseName.split("_unrelaxed_")[0], max_vals ? (max_vals.sum() / max_vals.size()) : null]
+            return parseIpsaeMaxRows(it[1], "colabfold", it[1].baseName.split("_unrelaxed_")[0])
     }
     .set{ch_ipsae_out}
 
@@ -424,42 +416,81 @@ workflow WISPS {
     .collect { it.trim() }
     .findAll { it in ['boltz','colabfold','alphafold3'] }
 
-    def header = "Sample," + active_modes.collect { "${it}_ipsae" }.join(",") + "\n"
-
-    // 1) Long format: [sample_id, model, score]
+    // 1) Long format: [sample_id, pair_id, model, score]
     ch_long = Channel.empty()
     if ('boltz' in active_modes)
-        ch_long = ch_long.mix(ch_ipsae_out.boltz.map { id, score -> [id, 'boltz', score] })
+        ch_long = ch_long.mix(ch_ipsae_out.boltz.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'boltz', e[1]] } })
     if ('colabfold' in active_modes)
-        ch_long = ch_long.mix(ch_ipsae_out.colabfold.map { id, score -> [id, 'colabfold', score] })
+        ch_long = ch_long.mix(ch_ipsae_out.colabfold.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'colabfold', e[1]] } })
     if ('alphafold3' in active_modes)
-        ch_long = ch_long.mix(ch_ipsae_out.alphafold3.map { id, score -> [id, 'alphafold3', score] })
+        ch_long = ch_long.mix(ch_ipsae_out.alphafold3.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'alphafold3', e[1]] } })
 
-    // 2) Pivot per sample: [sample_id, modelScoreMap]
-    ch_wide = ch_long
-        .map { id, model, score -> [id, [model, score]] }
+    // 2) Pivot per pair: [pair_id, sampleModelScoreMap]
+    ch_pair_wide = ch_long
+        .map { sampleId, pairId, model, score -> [pairId, [sampleId, model, score]] }
         .groupTuple()
-        .map { id, pairs ->
-            def m = pairs.collectEntries { p -> [(p[0]): p[1]] }
-            [id, m]
+        .map { pairId, rows ->
+            def bySample = [:].withDefault { [:] }
+            rows.each { r ->
+                bySample[r[0]][r[1]] = r[2]
+            }
+            [pairId, bySample]
         }
 
-    // 3) Left-join against all expected samples and render rows by active_modes order
+    // 3) Create one CSV per pair with model-only headers
+    ch_interaction_in.map { it[0].id }.unique().toSortedList().map { [sample_ids: it] }
+        .combine(ch_pair_wide.collect(flat: false).map { [pairs: it] })
+        .flatMap { left, right ->
+            def ids = left.sample_ids
+            def pairs = right.pairs
+            pairs.collect { pairEntry ->
+                def pairId = pairEntry[0]
+                def bySample = pairEntry[1]
+                def header = "Sample," + active_modes.join(",") + "\n"
+                def body = ids.collect { id ->
+                    def mm = bySample[id] ?: [:]
+                    def vals = active_modes.collect { mode -> mm[mode] != null ? mm[mode] : "" }
+                    "${id},${vals.join(',')}\n"
+                }.join("")
+                def safePairId = pairId.replaceAll(/[^A-Za-z0-9._-]+/, "_")
+                ["ipsae_scores_${safePairId}.csv", header + body]
+            }
+        }
+        .collectFile(
+            storeDir: "${outdir}/ipsae",
+            newLine: false
+        ) { item -> [item[0], item[1]] }
+        .set { ch_ipsae_scores_by_pair }
+
+    // 4) Additional summary file: max score per sample/model across all pair ids
+    ch_model_wide = ch_long
+        .map { sampleId, pairId, model, score -> [[sampleId, model], score] }
+        .groupTuple()
+        .map { key, scores -> [key[0], [key[1], scores.max()]] }
+        .groupTuple()
+        .map { sampleId, pairs ->
+            def m = pairs.collectEntries { p -> [(p[0]): p[1]] }
+            [sampleId, m]
+        }
+
+    def summary_header = "Sample," + active_modes.join(",") + "\n"
     ch_interaction_in.map { it[0].id }.unique().map { [it, true] }
-        .join(ch_wide, remainder: true)
+        .join(ch_model_wide, remainder: true)
         .map { id, _, m ->
             def mm = m ?: [:]
             def vals = active_modes.collect { mode -> mm[mode] != null ? mm[mode] : "" }
             "${id},${vals.join(',')}\n"
         }
         .toSortedList()
-        .flatMap{ it }
+        .flatMap { it }
         .collectFile(
             storeDir: "${outdir}/ipsae",
             name: 'ipsae_scores.csv',
-            seed: header
+            seed: summary_header
         )
-        .set { ch_ipsae_scores }
+        .set { ch_ipsae_scores_max }
+
+    ch_ipsae_scores = ch_ipsae_scores_by_pair.mix(ch_ipsae_scores_max)
 
 
     ch_boltz_confidence
