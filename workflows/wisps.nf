@@ -85,7 +85,7 @@ workflow WISPS {
     }
     if ("all-all" in interaction_mode) {
         interaction_mode = ["all-all"]
-    }else{
+    } else if (!("manual" in interaction_mode)) {
         required = interaction_mode.collect{it.split("-")}.flatten().unique()
         ch_samplesheet
             .map{it[0].group}
@@ -106,7 +106,7 @@ workflow WISPS {
     .multiMap{
         if (it[1].extension == "fasta" || it[1].extension == "fa")
             {seq = getFastaSequences(it[1].text).sequence.join(":")}
-        else if (it[1].extension == "yaml" || it[1].extension == ".yml")
+        else if (it[1].extension == "yaml" || it[1].extension == "yml")
             {seq = getYamlSequences(it[1].text).sequence.join(":")}
         else if (it[1].extension == "json")
             {seq = ""}
@@ -118,38 +118,52 @@ workflow WISPS {
     }.set{ch_raw_sample_sheet}
 
 
-    CREATE_INTERACTIONS(
-        ch_raw_sample_sheet.ids.collect(),
-        ch_raw_sample_sheet.types.collect(),
-        ch_raw_sample_sheet.groups.collect(),
-        ch_raw_sample_sheet.seqs.collect(),
-        interaction_mode,
-        interaction_threshold
-    )
+    ch_interaction_raw = Channel.empty()
+    ch_interaction_info = Channel.empty()
 
-    ch_interaction_info = CREATE_INTERACTIONS.out.interaction_mapping
-    .flatMap { mapping_tsv ->
-        def out = []
-        def lines = mapping_tsv.readLines().findAll { it?.trim() }
-        if (lines.isEmpty()) {
-            throw new IllegalStateException("Invalid interaction mapping file ${mapping_tsv}: file is empty.")
-        }
+    if (!("manual" in interaction_mode)) {
+        CREATE_INTERACTIONS(
+            ch_raw_sample_sheet.ids.collect(),
+            ch_raw_sample_sheet.types.collect(),
+            ch_raw_sample_sheet.groups.collect(),
+            ch_raw_sample_sheet.seqs.collect(),
+            interaction_mode,
+            interaction_threshold
+        )
 
-        lines.drop(1).each { line ->
-            def cols = line.split("\t", -1)
-            if (cols.size() != 3) {
-                throw new IllegalStateException("Invalid interaction mapping row in ${mapping_tsv}: '${line}'")
+        ch_interaction_info = CREATE_INTERACTIONS.out.interaction_mapping
+        .flatMap { mapping_tsv ->
+            def out = []
+            def lines = mapping_tsv.readLines().findAll { it?.trim() }
+            if (lines.isEmpty()) {
+                throw new IllegalStateException("Invalid interaction mapping file ${mapping_tsv}: file is empty.")
             }
-            def interaction_id = cols[0].trim()
-            def int_chain_map = cols[1].trim()
-            def str_chain_map = cols[2].trim()
-            out << [interaction_id, int_chain_map, str_chain_map]
+
+            lines.drop(1).each { line ->
+                def cols = line.split("\t", -1)
+                if (cols.size() != 3) {
+                    throw new IllegalStateException("Invalid interaction mapping row in ${mapping_tsv}: '${line}'")
+                }
+                def interaction_id = cols[0].trim()
+                def int_chain_map = cols[1].trim()
+                def str_chain_map = cols[2].trim()
+                out << [interaction_id, int_chain_map, str_chain_map]
+            }
+            out
         }
-        out
+
+        ch_interaction_raw = CREATE_INTERACTIONS.out.interactions
+    } else {
+        ch_interaction_raw = ch_samplesheet
+            .map { it[1] }
+            .filter { it.extension == "fasta" || it.extension == "fa" }
+            .ifEmpty { error("Manual mode requires at least one FASTA file in the samplesheet sequence column.") }
+            .collectFile(name: "manual_interactions.fasta", newLine: false) { fasta_file ->
+                ["manual_interactions.fasta", fasta_file.text.trim() + "\n"]
+            }
     }
 
-    ch_interaction_raw = CREATE_INTERACTIONS.out.interactions
-    .flatMap { interactions_fasta ->
+    ch_interaction_has_protein = ch_interaction_raw.flatMap { interactions_fasta ->
         def out = []
         def lines = interactions_fasta.readLines().findAll { it?.trim() }
         if (lines.size() % 2 != 0) {
@@ -164,13 +178,18 @@ workflow WISPS {
 
             def interaction_id = header.substring(1).trim()
             def sequence_line = chunk[1].trim()
-            //def has_protein = sequence_line.split(":").any { !it.contains("|") }
             def has_protein = sequence_line.split(":").count { !it.contains("|") } > 1
             out << [interaction_id, has_protein]
         }
         out
     }
-    ch_interaction_raw
+
+    if ("manual" in interaction_mode) {
+        ch_interaction_info = ch_interaction_has_protein
+            .map { interaction_id, _ -> [interaction_id, "", ""] }
+    }
+
+    ch_interaction_has_protein
     .join(ch_interaction_info)
     .map { interaction_id, has_protein, int_chain_map, str_chain_map ->
         [
@@ -184,11 +203,10 @@ workflow WISPS {
     }
     .set{ch_interaction_in}
 
-
     ch_interaction_in.count().subscribe{print("total final: ${it}")}
 
     MMSEQS_COLABFOLDSEARCH (
-        CREATE_INTERACTIONS.out.interactions.map{[["id": "all_run"], it]},
+        ch_interaction_raw.map{[["id": "all_run"], it]},
         ch_colabfold_db,
         ch_uniref30
     )
