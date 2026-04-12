@@ -19,11 +19,17 @@ process COLLECT_CONFIDENCE {
 
     script:
     def args = task.ext.args ?: ''
+    def samples_json = groovy.json.JsonOutput.toJson(samples)
 
     """
+    cat << 'EOF' > sample_metadata.json
+    ${samples_json}
+    EOF
+
     collect_confidence.py \\
         --input input_json_files \\
         --model "${meta.model}"\\
+        --sample-metadata sample_metadata.json \\
         --output "${meta.model}_confidence_scores_full.csv"
 
     cat <<-END_VERSIONS > versions.yml

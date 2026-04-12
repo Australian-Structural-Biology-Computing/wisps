@@ -127,7 +127,28 @@ workflow WISPS {
         interaction_threshold
     )
 
-    CREATE_INTERACTIONS.out.interactions
+    ch_interaction_info = CREATE_INTERACTIONS.out.interaction_mapping
+    .flatMap { mapping_tsv ->
+        def out = []
+        def lines = mapping_tsv.readLines().findAll { it?.trim() }
+        if (lines.isEmpty()) {
+            throw new IllegalStateException("Invalid interaction mapping file ${mapping_tsv}: file is empty.")
+        }
+
+        lines.drop(1).each { line ->
+            def cols = line.split("\t", -1)
+            if (cols.size() != 3) {
+                throw new IllegalStateException("Invalid interaction mapping row in ${mapping_tsv}: '${line}'")
+            }
+            def interaction_id = cols[0].trim()
+            def int_chain_map = cols[1].trim()
+            def str_chain_map = cols[2].trim()
+            out << [interaction_id, int_chain_map, str_chain_map]
+        }
+        out
+    }
+
+    ch_interaction_raw = CREATE_INTERACTIONS.out.interactions
     .flatMap { interactions_fasta ->
         def out = []
         def lines = interactions_fasta.readLines().findAll { it?.trim() }
@@ -145,12 +166,21 @@ workflow WISPS {
             def sequence_line = chunk[1].trim()
             //def has_protein = sequence_line.split(":").any { !it.contains("|") }
             def has_protein = sequence_line.split(":").count { !it.contains("|") } > 1
-            out << [
-                ["id": interaction_id],
-                has_protein
-            ]
+            out << [interaction_id, has_protein]
         }
         out
+    }
+    ch_interaction_raw
+    .join(ch_interaction_info)
+    .map { interaction_id, has_protein, int_chain_map, str_chain_map ->
+        [
+            [
+                "id": interaction_id,
+                "int_chain_map": int_chain_map,
+                "str_chain_map": str_chain_map
+            ],
+            has_protein
+        ]
     }
     .set{ch_interaction_in}
 
@@ -492,23 +522,41 @@ workflow WISPS {
 
     ch_ipsae_scores = ch_ipsae_scores_by_pair.mix(ch_ipsae_scores_max)
 
+    ch_interaction_meta_by_id = ch_interaction_in
+        .map { [it[0].id, it[0]] }
 
-    ch_boltz_confidence
-    .mix(ch_boltz_affinity)
+    ch_boltz_confidence_with_meta = ch_boltz_confidence
+    .map { [it[0].id, it[1]] }
+    .join(ch_interaction_meta_by_id)
+    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
+
+    ch_boltz_affinity_with_meta = ch_boltz_affinity
+    .map { [it[0].id, it[1]] }
+    .join(ch_interaction_meta_by_id)
+    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
+
+    ch_boltz_confidence_with_meta
+    .mix(ch_boltz_affinity_with_meta)
     .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}.unique()
+        ids: json_list.collect{it[0]}.unique{it.id}
         json: json_list.collect{it[1]}
     }.set{ch_boltz_confidence_scores}
 
     ch_alphafold3_summary_confidences
+    .map { [it[0].id, it[1]] }
+    .join(ch_interaction_meta_by_id)
+    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
     .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
+        ids: json_list.collect{it[0]}.unique{it.id}
         json: json_list.collect{it[1]}
     }.set{ch_alphafold3_confidence_scores}
 
     ch_colabfold_scores
+    .map { [it[0].id, it[1]] }
+    .join(ch_interaction_meta_by_id)
+    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
     .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0].id}
+        ids: json_list.collect{it[0]}.unique{it.id}
         json: json_list.collect{it[1]}
     }.set{ch_colabfold_confidence_scores}
 
