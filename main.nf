@@ -47,8 +47,8 @@ workflow NFCORE_WISPS {
             Channel.fromPath(params.boltz2_aff, checkIfExists: true).first(),
             Channel.fromPath(params.boltz2_conf, checkIfExists: true).first(),
             Channel.fromPath(params.boltz2_mols, checkIfExists: true).first(),
-            Channel.fromPath(params.colabfold_db, checkIfExists: true).first(),
-            Channel.fromPath(params.uniref30, checkIfExists: true).first(),
+            Channel.fromPath(params.colabfold_envdb, checkIfExists: true).first(),
+            Channel.fromPath(params.colabfold_uniref30, checkIfExists: true).first(),
             Channel.fromPath(params.colabfold_alphafold2_params, checkIfExists: true).first(),
             params.colabfold_num_recycles,
             Channel.fromPath(params.alphafold3_params, checkIfExists: true).first(),
@@ -60,7 +60,7 @@ workflow NFCORE_WISPS {
             params.outdir,
             params.analysis_batch_size,
             params.colabfold_batch_size,
-            params.interaction_threshold
+            params.interaction_neighbours
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
 

@@ -13,7 +13,7 @@ process CREATE_INTERACTIONS {
     val(groups)
     val(seqs)
     val(interaction_mode)
-    val(interaction_threshold)
+    val(interaction_neighbours)
 
     output:
     path ("interactions.fasta"), emit: interactions
@@ -81,7 +81,7 @@ process CREATE_INTERACTIONS {
                 if interaction_mode[0] != "all-all" and groups[i] not in group_ls:
                     continue
 
-                if (interaction_mode[0] != "all-all" and "-".join(sorted([groups[i], groups[j]])) in interaction_mode) or (interaction_mode[0] == "all-all" and (${interaction_threshold} == 0 or abs(i-j) <= ${interaction_threshold})):
+                if (interaction_mode[0] != "all-all" and "-".join(sorted([groups[i], groups[j]])) in interaction_mode) or (interaction_mode[0] == "all-all" and (${interaction_neighbours} == 0 or abs(i-j) <= ${interaction_neighbours})):
                     interactions_cntr += 1
                     left_chain_count = chain_count(types[i], seqs[i])
                     right_chain_count = chain_count(types[j], seqs[j])

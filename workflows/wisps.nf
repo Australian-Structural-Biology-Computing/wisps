@@ -60,8 +60,8 @@ workflow WISPS {
     ch_boltz2_aff
     ch_boltz2_conf
     ch_mols
-    ch_colabfold_db
-    ch_uniref30
+    ch_colabfold_envdb
+    ch_colabfold_uniref30
     ch_colabfold_params
     num_recycles
     ch_alphafold3_params
@@ -73,7 +73,7 @@ workflow WISPS {
     outdir
     analysis_batch_size
     colabfold_batch_size
-    interaction_threshold
+    interaction_neighbours
 
     main:
     ch_multiqc_files = Channel.empty()
@@ -128,7 +128,7 @@ workflow WISPS {
             ch_raw_sample_sheet.groups.collect(),
             ch_raw_sample_sheet.seqs.collect(),
             interaction_mode,
-            interaction_threshold
+            interaction_neighbours
         )
 
         ch_interaction_info = CREATE_INTERACTIONS.out.interaction_mapping
@@ -207,8 +207,8 @@ workflow WISPS {
 
     MMSEQS_COLABFOLDSEARCH (
         ch_interaction_raw.map{[["id": "all_run"], it]},
-        ch_colabfold_db,
-        ch_uniref30
+        ch_colabfold_envdb,
+        ch_colabfold_uniref30
     )
     ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
 

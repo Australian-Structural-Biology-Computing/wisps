@@ -55,7 +55,7 @@
                     "description": "Number of ColabFold samples to be processed in the analysis after multiple single alignment",
                     "fa_icon": "fas fa-microchip"
                 },
-                "interaction_threshold": {
+                "interaction_neighbours": {
                     "type": "integer",
                     "default": 0,
                     "description": "Local neighbourhood to model in all-by-all mode",
@@ -97,15 +97,7 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["input", "outdir"],
             "properties": {
-                "colabfold_db": {
-                    "type": "string",
-                    "format": "path",
-                    "exists": true,
-                    "description": "Specifies the PARAMS and DB path used by 'colabfold'  mode",
-                    "fa_icon": "fas fa-folder-open",
-                    "errorMessage": "Please provide a valid path to ColabFold database"
-                },
-                "uniref30": {
+                "colabfold_uniref30": {
                     "type": "string",
                     "description": "Link to the UniRef30 database",
                     "fa_icon": "fas fa-folder-open"
