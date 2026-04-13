@@ -125,7 +125,7 @@
                     "type": "string",
                     "description": "Link to the ColabFold database",
                     "fa_icon": "fas fa-folder-open",
-                    "default": "colabfold_uniref30/uniref30_2302_db"
+                    "default": "colabfold_envdb/colabfold_envdb_202108_db"
                 },
                 "spire_db": {
                     "type": "string",
