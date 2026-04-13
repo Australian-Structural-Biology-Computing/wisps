@@ -439,6 +439,53 @@ workflow WISPS {
         [sampleId, entries]
     }
 
+    def parseStrChainMap = { strChainMap ->
+        if (!strChainMap || !strChainMap.contains(":")) {
+            return [[], []]
+        }
+        def parts = strChainMap.split(":", 2)
+        def leftIds = parts[0].split(",").collect { it.trim() }.findAll { it != "" }
+        def rightIds = parts[1].split(",").collect { it.trim() }.findAll { it != "" }
+        [leftIds, rightIds]
+    }
+
+    def computeMaxCrossGroupIpsae = { entries, strChainMap ->
+        if (!entries) {
+            return null
+        }
+        def overallMax = entries.collect { it[1] }.findAll { it != null }.max()
+
+        // If no chain map exists, fall back to the overall max IPSAE.
+        if (!strChainMap || !strChainMap.contains(":")) {
+            return overallMax
+        }
+
+        def parsed = parseStrChainMap(strChainMap)
+        def leftIds = parsed[0] as Set
+        def rightIds = parsed[1] as Set
+        if (leftIds.isEmpty() || rightIds.isEmpty()) {
+            return overallMax
+        }
+
+        def crossScores = entries.collect { pair ->
+            def pairId = pair[0].toString()
+            def score = pair[1]
+            def chains = pairId.split("_", 2)
+            if (chains.size() != 2) {
+                chains = pairId.split("-", 2)
+            }
+            if (chains.size() != 2) {
+                return null
+            }
+            def left = chains[0].trim()
+            def right = chains[1].trim()
+            ((leftIds.contains(left) && rightIds.contains(right)) ||
+            (leftIds.contains(right) && rightIds.contains(left))) ? score : null
+        }.findAll { it != null }
+
+        crossScores ? crossScores.max() : null
+    }
+
     IPSAE.out.txt
     .transpose()
     .branch {
@@ -504,9 +551,30 @@ workflow WISPS {
         ) { item -> [item[0], item[1]] }
         .set { ch_ipsae_scores_by_pair }
 
-    // 4) Additional summary file: max score per sample/model across all pair ids
-    ch_model_wide = ch_long
-        .map { sampleId, pairId, model, score -> [[sampleId, model], score] }
+    // 4) Additional summary file: max cross-group (left/right in str_chain_map) IPSAE per sample/model
+    ch_str_chain_map_by_id = ch_interaction_in.map { [it[0].id, it[0].str_chain_map] }
+
+    ch_model_rows = ch_ipsae_out.boltz
+        .join(ch_str_chain_map_by_id, remainder: true)
+        .map { sampleId, entries, strChainMap ->
+            [[sampleId, "boltz"], computeMaxCrossGroupIpsae(entries, strChainMap)]
+        }
+        .mix(
+            ch_ipsae_out.colabfold
+                .join(ch_str_chain_map_by_id, remainder: true)
+                .map { sampleId, entries, strChainMap ->
+                    [[sampleId, "colabfold"], computeMaxCrossGroupIpsae(entries, strChainMap)]
+                }
+        )
+        .mix(
+            ch_ipsae_out.alphafold3
+                .join(ch_str_chain_map_by_id, remainder: true)
+                .map { sampleId, entries, strChainMap ->
+                    [[sampleId, "alphafold3"], computeMaxCrossGroupIpsae(entries, strChainMap)]
+                }
+        )
+
+    ch_model_wide = ch_model_rows
         .groupTuple()
         .map { key, scores -> [key[0], [key[1], scores.max()]] }
         .groupTuple()
