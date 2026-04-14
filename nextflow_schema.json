@@ -105,14 +105,12 @@
                 "colabfold_uniref30": {
                     "type": "string",
                     "description": "Link to the UniRef30 database",
-                    "fa_icon": "fas fa-folder-open",
-                    "default": "null/colabfold_uniref30/"
+                    "fa_icon": "fas fa-folder-open"
                 },
                 "colabfold_envdb": {
                     "type": "string",
                     "description": "Link to the ColabFold database",
-                    "fa_icon": "fas fa-folder-open",
-                    "default": "null/colabfold_envdb/"
+                    "fa_icon": "fas fa-folder-open"
                 },
                 "colabfold_uniref30_prefix": {
                     "type": "string",
@@ -134,28 +132,23 @@
                 "colabfold_alphafold2_params": {
                     "type": "string",
                     "description": "Link to the Alphafold2 parameters for Colabfold",
-                    "fa_icon": "fas fa-folder-open",
-                    "default": "null/params/alphafold_params_2022-12-06"
+                    "fa_icon": "fas fa-folder-open"
                 },
                 "boltz2_aff": {
                     "type": "string",
-                    "description": "Path to boltz affinity file",
-                    "default": "null/params/boltz2_aff.ckpt"
+                    "description": "Path to boltz affinity file"
                 },
                 "boltz2_conf": {
                     "type": "string",
-                    "description": "Path to boltz-2 conf file",
-                    "default": "null/params/boltz2_conf.ckpt"
+                    "description": "Path to boltz-2 conf file"
                 },
                 "boltz2_mols": {
                     "type": "string",
-                    "description": "Path to boltz-2 mols",
-                    "default": "null/params/mols"
+                    "description": "Path to boltz-2 mols"
                 },
                 "alphafold3_params": {
                     "type": "string",
-                    "description": "Path to Alphafold3 params",
-                    "default": "null/params/af3.bin"
+                    "description": "Path to Alphafold3 params"
                 }
             }
         },
