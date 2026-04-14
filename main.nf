@@ -28,6 +28,7 @@ workflow NFCORE_WISPS {
     take:
     samplesheet // channel: samplesheet read in from --input
     main:
+    tool_set = params.tools.toLowerCase().split(",") as Set
     ch_samplesheet              = samplesheet
     ch_multiqc                  = Channel.empty()
     ch_versions                 = Channel.empty()
@@ -36,6 +37,22 @@ workflow NFCORE_WISPS {
     ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath( params.multiqc_config ).first()  : Channel.empty()
     ch_multiqc_logo          = params.multiqc_logo   ? Channel.fromPath( params.multiqc_logo ).first()    : Channel.empty()
     ch_multiqc_methods_description = params.multiqc_methods_description ? file(params.multiqc_methods_description, checkIfExists: true) : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
+
+    ch_boltz2_aff = ("boltz" in tool_set)
+        ? Channel.fromPath(params.boltz2_aff, checkIfExists: true).first()
+        : Channel.empty()
+    ch_boltz2_conf = ("boltz" in tool_set)
+        ? Channel.fromPath(params.boltz2_conf, checkIfExists: true).first()
+        : Channel.empty()
+    ch_boltz2_mols = ("boltz" in tool_set)
+        ? Channel.fromPath(params.boltz2_mols, checkIfExists: true).first()
+        : Channel.empty()
+    ch_colabfold_alphafold2_params = ("colabfold" in tool_set)
+        ? Channel.fromPath(params.colabfold_alphafold2_params, checkIfExists: true).first()
+        : Channel.empty()
+    ch_alphafold3_params = ("alphafold3" in tool_set)
+        ? Channel.fromPath(params.alphafold3_params, checkIfExists: true).first()
+        : Channel.empty()
     //
     // WORKFLOW: Run pipeline
     //
@@ -44,14 +61,14 @@ workflow NFCORE_WISPS {
             ch_samplesheet,
             params.mode,
             ch_versions,
-            Channel.fromPath(params.boltz2_aff, checkIfExists: true).first(),
-            Channel.fromPath(params.boltz2_conf, checkIfExists: true).first(),
-            Channel.fromPath(params.boltz2_mols, checkIfExists: true).first(),
+            ch_boltz2_aff,
+            ch_boltz2_conf,
+            ch_boltz2_mols,
             Channel.fromPath(params.colabfold_envdb, checkIfExists: true).first(),
             Channel.fromPath(params.colabfold_uniref30, checkIfExists: true).first(),
-            Channel.fromPath(params.colabfold_alphafold2_params, checkIfExists: true).first(),
+            ch_colabfold_alphafold2_params,
             params.colabfold_num_recycles,
-            Channel.fromPath(params.alphafold3_params, checkIfExists: true).first(),
+            ch_alphafold3_params,
             params.tools,
             ch_multiqc_config,
             ch_multiqc_custom_config,
