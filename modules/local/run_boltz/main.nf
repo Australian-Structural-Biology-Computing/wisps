@@ -16,13 +16,9 @@ process RUN_BOLTZ {
     path ('mols')
 
     output:
-    tuple val(meta), path ("boltz_results_*/processed/msa/*.npz")               , optional: true, emit: msa
-    tuple val(meta), path ("boltz_results_*/processed/structures/*.npz")        , emit: structures
     tuple val(meta), path ("boltz_results_*/predictions/*/confidence*.json")    , emit: confidence
-    tuple val(meta), path ("boltz_results_*/predictions/*/*.pdb")               , optional: true, emit: pdb
-    tuple val(meta), path ("boltz_results_*/predictions/*/*model_0.cif")        , optional: true, emit: cif
-    tuple val(meta), path ("boltz_results_*/predictions/*/plddt_*model_0.npz")  , emit: plddt
-    tuple val(meta), path ("boltz_results_*/predictions/*/pae_*model_0.npz")    , optional: true, emit: pae
+    tuple val(meta), path ("boltz_results_*/predictions/*/*model_0.cif")        , emit: cif
+    tuple val(meta), path ("boltz_results_*/predictions/*/pae_*model_0.npz")    , emit: pae
     tuple val(meta), path ("boltz_results_*/predictions/*/affinity_*.json")     , optional: true, emit: affinity
 
     path "versions.yml", emit: versions
@@ -62,13 +58,9 @@ process RUN_BOLTZ {
         fname=\${f##*/}
         id=\${fname%%_*}
         mkdir -p boltz_results_fasta/predictions/\${id}_boltz_interaction_input
-        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/\${id}_boltz_interaction_input_model_0.pdb
         touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/\${id}_boltz_interaction_input_model_0.cif
         touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/confidence_\${id}_boltz_interaction_input_model_0.json
         touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/pae_\${id}_boltz_interaction_input_model_0.npz
-        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/plddt_\${id}_boltz_interaction_input_model_0.npz
-        touch boltz_results_fasta/processed/msa/\${id}_boltz_interaction_input_0.npz
-        touch boltz_results_fasta/processed/structures/\${id}_boltz_interaction_input.npz
     done
 
     cat <<-END_VERSIONS > versions.yml
