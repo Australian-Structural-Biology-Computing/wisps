@@ -24,25 +24,35 @@ An example of the sample sheet used for the pipeline is shown below:
 id,sequence,group,type
 S1,S1.fasta,A,protein
 S2,Sample2.fasta,B,protein
-S3,S3.yaml,A,rna
+S3,S3.fasta,A,rna
 ```
 
 | Column     | Description                                                                                                                                                                                                                                                                                                                                        |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore or hyphen (`_`, `-`).                                                                                                                                                                                                                               |
-| `sequence` | Full path to Fasta/YAML file for sample sequence. File has to have the extension ".fasta", ".fa", or "yaml".                                                                                                                                                                                                                                       |
+| `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa"                                                                                                                                                                                                                                       |
 | `type`     | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                             |
 | `group`    | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`. |
+
+A sequence file can contain multiple entities but if the entities are different types, they must adhere to the colabfold standard described below.
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 
 ## Creating Interactions from sample sheet
 
-The created interactions generated from the sample sheet are customised through the parameter `--mode`. Two different ways to customise what interactions are generated from the sample sheet:
+The interactions generated from the sample sheet are controlled with `--mode`. There are three supported modes:
 
-1. The default behavior is for `--mode all-all`. In this case, the workflow will generate interaction pairs for all samples in the sample sheet against each other (all possible combinations) and keep the unique pairs after ignoring the order of the samples. This does not require the group column to be provided in the sample sheet, and this is the default behavior of the workflow unless the `--mode` parameter is customised. When using this mode, the user can liit the number of formed interactions through the parameter `interaction_neighbours` which takes a numeric value. by default the value is 0 and all interactions are formed. For any positive value `n`, onlye the neighboring paires that are within `n` neighbors will be considered. In this case, teh order of the samples in teh sample sheet matters. For example, if `--interaction_neighbours 2`, the 2 nighbouring samples (2 before and 2 after) will be consdered.
+1. `--mode all-all` (default): the workflow generates all unique sample pairs (order-independent) across the full sample sheet. This mode does not require the `group` column. You can limit pair generation with `--interaction_neighbours <n>`. The default is `0` (no limit). For any positive `n`, only pairs within `n` neighbours in the sample sheet order are kept. For example, with `--interaction_neighbours 2`, each sample is paired with up to 2 samples before and 2 samples after it.
 
-2. A custom combination can be achieved through the column group in the sample sheet. You can use a combination of the group values. You can use multiple combinations by separating them with a comma (`,`). For example, there are group `A` and group `B1` in the example sample sheet above, running the pipeline with `--mode A-A,A-B` will generate the followiong pairs `S1-S1`, `S3-S3`, and `S1-S3` from the combination `A-A` and add to it the pait `S1-S2` and `S2-S3` from teh combination `A-B`.
+2. Group-based mode (for example, `--mode A-A,A-B`): interactions are generated only for the requested group combinations from the `group` column (comma-separated, no spaces). With groups `A` and `B`, `--mode A-A,A-B` will include all `A-A` pairs plus all `A-B` pairs.
+
+3. `--mode manual`: no interaction pairing is generated from the sample sheet. Instead, each FASTA record is treated as one interaction input directly. In this mode, provide interaction FASTA entries in the required ColabFold format:
+   - One FASTA record per interaction (`>interaction_id` then one sequence line).
+   - Use `:` to separate entities/chains in a complex.
+   - Use `molecule_type|sequence` for non-protein entities (for example `dna|ATCG`, `rna|AUGC`, `ccd|ATP`, `smiles|...`; optional copies like `ccd|ATP|2`).
+   - If SMILES contains aromatic bonds, replace `:` with `;` as required by ColabFold parsing.
+
+Reference: ColabFold input format examples in the official repository README: <https://github.com/sokrypton/ColabFold>.
 
 ## Running the pipeline
 

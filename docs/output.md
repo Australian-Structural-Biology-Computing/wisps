@@ -6,13 +6,81 @@ This document describes the output produced by the pipeline. Most of the plots a
 
 The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
 
-<!-- TODO nf-core: Write this documentation describing your workflow's output -->
+## WISPS-specific outputs
+
+### Interaction generation
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `create/`
+  - `interactions.fasta`: generated interaction sequences used as model input.
+  - `interaction_mapping.tsv`: mapping between interaction IDs and chain indices / chain labels.
+
+</details>
+
+This step expands the samplesheet inputs into pairwise interactions according to `--mode` and `--interaction_neighbours`.
+
+### MSA and model-input preparation
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `mmseqs/`
+  - `*.a3m`: MSA files produced by `colabfold_search`.
+  - `*.json`: AlphaFold3 JSON input files (when AlphaFold3 is enabled).
+  - `*.yaml`: Boltz YAML input files (when Boltz is enabled).
+  - `*.csv`: Paired MSA in CSV format used by Boltz (when Boltz is enabled).
+
+</details>
+
+These files are generated once from the interaction FASTA and reused by downstream structure prediction tools.
+
+### Structure prediction results
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `run/` (outputs from both Boltz and AlphaFold3 modules)
+  - Boltz:
+    - `boltz_results_*/predictions/*/*.cif` and optional `*.pdb`: predicted structures.
+    - `boltz_results_*/predictions/*/confidence_*.json`: confidence metrics.
+    - `boltz_results_*/predictions/*/affinity_*.json`: affinity predictions (if produced).
+    - `boltz_results_*/predictions/*/pae_*.npz`: PAE matrices.
+    - `boltz_results_*/predictions/*/plddt_*.npz`: per-residue confidence arrays.
+    - `boltz_results_*/processed/structures/*.npz`: processed structure arrays.
+    - `boltz_results_*/processed/msa/*.npz`: processed MSA arrays.
+  - AlphaFold3:
+    - `out/*/*_model.cif`: top-ranked model structures.
+    - `out/*/*_confidences.json`: detailed confidence output.
+    - `out/*/*_summary_confidences.json`: summary confidence output.
+- `colabfold/`
+  - `*_relaxed_rank_001_*_model_*.pdb`: relaxed top-ranked ColabFold structures.
+  - `*_scores_rank_001_*.json`: model score summaries.
+  - `*_coverage.png`: MSA coverage plots.
+
+</details>
+
+### IPSAE and confidence summaries
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `ipsae/`
+  - `*.pml`, `*_byres.txt`, `*<digit>.txt`: IPSAE per-structure analysis outputs.
+  - `ipsae_scores.csv`: per-interaction summary table with maximum cross-group IPSAE scores by model.
+  - `ipsae_scores_<pair>.csv`: per-chain-pair IPSAE tables across all interactions.
+- `collect/`
+  - `*_confidence_scores_full.csv`: model-specific confidence summary tables used by MultiQC including a maximum cross-group chainwise ipTM score.
+
+</details>
 
 ## Pipeline overview
 
 The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes data using the following steps:
 
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
+- [WISPS-specific outputs](#wisps-specific-outputs) - Interaction files, model inputs, structure predictions, and summary tables
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
 ### MultiQC

@@ -97,15 +97,22 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["input", "outdir"],
             "properties": {
+                "db": {
+                    "type": "string",
+                    "description": "Path to reference data and model parameters",
+                    "fa_icon": "fas fa-folder-open"
+                },
                 "colabfold_uniref30": {
                     "type": "string",
                     "description": "Link to the UniRef30 database",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/colabfold_uniref30/"
                 },
                 "colabfold_envdb": {
                     "type": "string",
                     "description": "Link to the ColabFold database",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/colabfold_envdb/"
                 },
                 "colabfold_uniref30_prefix": {
                     "type": "string",
@@ -127,25 +134,28 @@
                 "colabfold_alphafold2_params": {
                     "type": "string",
                     "description": "Link to the Alphafold2 parameters for Colabfold",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/params/alphafold_params_2022-12-06"
                 },
                 "boltz2_aff": {
                     "type": "string",
-                    "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_aff.ckpt",
-                    "description": "Path to boltz affinity file"
+                    "description": "Path to boltz affinity file",
+                    "default": "null/params/boltz2_aff.ckpt"
                 },
                 "boltz2_conf": {
                     "type": "string",
-                    "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_conf.ckpt",
-                    "description": "Path to boltz-2 conf file"
+                    "description": "Path to boltz-2 conf file",
+                    "default": "null/params/boltz2_conf.ckpt"
                 },
                 "boltz2_mols": {
                     "type": "string",
-                    "description": "Path to boltz-2 mols"
+                    "description": "Path to boltz-2 mols",
+                    "default": "null/params/mols"
                 },
                 "alphafold3_params": {
                     "type": "string",
-                    "description": "Path to Alphafold3 params"
+                    "description": "Path to Alphafold3 params",
+                    "default": "null/params/af3.bin"
                 }
             }
         },
