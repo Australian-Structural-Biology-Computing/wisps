@@ -61,6 +61,18 @@
                     "description": "Local neighbourhood to model in all-by-all mode",
                     "fa_icon": "fas fa-microchip"
                 },
+                "pool": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable interaction pooling mode. When true, group pairs are read from --mode instead of standard interaction pairing.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "pool_size": {
+                    "type": "integer",
+                    "default": 2000,
+                    "description": "Maximum total sequence length per interaction pool (required when --pool is set).",
+                    "fa_icon": "fas fa-ruler-horizontal"
+                },
                 "use_gpu": {
                     "type": "boolean",
                     "description": "Run on CPUs (default) or GPUs for the models",

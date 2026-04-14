@@ -77,7 +77,9 @@ workflow NFCORE_WISPS {
             params.outdir,
             params.analysis_batch_size,
             params.colabfold_batch_size,
-            params.interaction_neighbours
+            params.interaction_neighbours,
+            params.pool,
+            params.pool_size
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
 

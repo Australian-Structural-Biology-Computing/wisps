@@ -36,6 +36,7 @@ include { COLABFOLD_BATCH } from '../modules/local/colabfold_batch'
 include { BOLTZ_FASTA } from '../modules/local/data_convertor/boltz_fasta'
 include { IPSAE } from '../modules/local/ipsae'
 include {CREATE_INTERACTIONS}  from '../modules/local/data_convertor/create_interactions'
+include {CREATE_INTERACTION_POOLS} from '../modules/local/data_convertor/create_interaction_pools'
 include { MMSEQS_COLABFOLDSEARCH } from '../modules/local/mmseqs_colabfoldsearch'
 
 //
@@ -74,33 +75,61 @@ workflow WISPS {
     analysis_batch_size
     colabfold_batch_size
     interaction_neighbours
+    pool
+    pool_size
 
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
 
-
+    use_interaction_pools = (pool instanceof Boolean) ? pool : pool.toString().toBoolean()
     interaction_mode = mode.split(",").collect { pair ->
         pair.split('-').sort().join('-')
     }
     if ("all-all" in interaction_mode) {
         interaction_mode = ["all-all"]
-    } else if (!("manual" in interaction_mode)) {
-        required = interaction_mode.collect{it.split("-")}.flatten().unique()
+    }
+
+    if (use_interaction_pools) {
+        if ((pool_size as Integer) <= 0) {
+            error("When using --pool, --pool_size must be a positive integer. Received: ${pool_size}")
+        }
+        if ("manual" in interaction_mode || "all-all" in interaction_mode) {
+            error("When using --pool, --mode must be explicit group pairs (e.g. 'A-B' or 'A-A,A-B'). 'manual' and 'all-all' are not supported.")
+        }
+
+        required_pool_groups = interaction_mode.collect{it.split("-")}.flatten().unique()
         ch_samplesheet
             .map{it[0].group}
             .unique()
             .toList()
             .subscribe{
                 emitted -> {
-                    if (required - emitted){
-                        log.error "The groups ${required - emitted} is not in the sample sheet!"
+                    if (required_pool_groups - emitted){
+                        log.error "The groups ${required_pool_groups - emitted} are not in the sample sheet!"
                         exit 1
                     }
                 }
             }
+        log.info "Using interaction pooling with modes: ${interaction_mode.join(',')} and max total sequence length ${pool_size}"
+    } else {
+        if (!("manual" in interaction_mode) && !("all-all" in interaction_mode)) {
+            required = interaction_mode.collect{it.split("-")}.flatten().unique()
+            ch_samplesheet
+                .map{it[0].group}
+                .unique()
+                .toList()
+                .subscribe{
+                    emitted -> {
+                        if (required - emitted){
+                            log.error "The groups ${required - emitted} is not in the sample sheet!"
+                            exit 1
+                        }
+                    }
+                }
+        }
+        log.info "Used Interactions (Sorted): ${interaction_mode.join(',')}"
     }
-    log.info "Used Interactions (Sorted): ${interaction_mode.join(',')}"
 
     ch_samplesheet
     .multiMap{
@@ -121,7 +150,39 @@ workflow WISPS {
     ch_interaction_raw = Channel.empty()
     ch_interaction_info = Channel.empty()
 
-    if (!("manual" in interaction_mode)) {
+    if (use_interaction_pools) {
+        CREATE_INTERACTION_POOLS(
+            ch_raw_sample_sheet.ids.collect(),
+            ch_raw_sample_sheet.types.collect(),
+            ch_raw_sample_sheet.groups.collect(),
+            ch_raw_sample_sheet.seqs.collect(),
+            interaction_mode,
+            pool_size
+        )
+
+        ch_interaction_info = CREATE_INTERACTION_POOLS.out.interaction_mapping
+        .flatMap { mapping_tsv ->
+            def out = []
+            def lines = mapping_tsv.readLines().findAll { it?.trim() }
+            if (lines.isEmpty()) {
+                throw new IllegalStateException("Invalid interaction mapping file ${mapping_tsv}: file is empty.")
+            }
+
+            lines.drop(1).each { line ->
+                def cols = line.split("\t", -1)
+                if (cols.size() != 3) {
+                    throw new IllegalStateException("Invalid interaction mapping row in ${mapping_tsv}: '${line}'")
+                }
+                def interaction_id = cols[0].trim()
+                def int_chain_map = cols[1].trim()
+                def str_chain_map = cols[2].trim()
+                out << [interaction_id, int_chain_map, str_chain_map]
+            }
+            out
+        }
+
+        ch_interaction_raw = CREATE_INTERACTION_POOLS.out.interactions
+    } else if (!("manual" in interaction_mode)) {
         CREATE_INTERACTIONS(
             ch_raw_sample_sheet.ids.collect(),
             ch_raw_sample_sheet.types.collect(),
