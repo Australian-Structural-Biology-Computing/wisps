@@ -147,7 +147,7 @@ process CREATE_INTERACTION_POOLS {
     seq_lengths = [sequence_length(types[i], seqs[i]) for i in range(n)]
 
     with open("interactions.fasta", "w") as target_interactions, open("interaction_mapping.tsv", "w") as mapping_file:
-        mapping_file.write("interaction_id\\tint_chain_map\\tstr_chain_map\\n")
+        mapping_file.write("interaction_id\\tint_chain_map\\tstr_chain_map\\treport_id\\tleft_source_id\\tright_source_id\\n")
 
         for pool_group_1, pool_group_2 in pool_pairs:
             left_indices = [i for i in range(n) if groups[i] == pool_group_1]
@@ -184,26 +184,35 @@ process CREATE_INTERACTION_POOLS {
 
                     left_chain_count = chain_count(types[left_i], seqs[left_i])
                     right_chain_counts = [chain_count(types[r], seqs[r]) for r in pooled_right]
-                    right_total_chain_count = sum(right_chain_counts)
 
                     left_chain_indices = ",".join(str(idx) for idx in range(0, left_chain_count))
-                    right_chain_indices_int = ",".join(
-                        str(idx) for idx in range(left_chain_count, left_chain_count + right_total_chain_count)
-                    )
                     left_chain_str_ids = ",".join(int_id_to_str_id(idx) for idx in range(0, left_chain_count))
-                    right_chain_str_ids = ",".join(
-                        int_id_to_str_id(idx) for idx in range(left_chain_count, left_chain_count + right_total_chain_count)
-                    )
 
                     interaction_id = f"{pool_group_1}-{pool_group_2}__{ids[left_i]}-pool{pool_idx:03d}"
-                    mapping_file.write(
-                        f"{interaction_id}\\t{left_chain_indices}:{right_chain_indices_int}\\t{left_chain_str_ids}:{right_chain_str_ids}\\n"
-                    )
 
                     entities = [entity_to_fasta(types[left_i], seqs[left_i])]
                     entities.extend(entity_to_fasta(types[r], seqs[r]) for r in pooled_right)
                     target_interactions.write(f">{interaction_id}\\n{':'.join(entities)}\\n")
                     interactions_cntr += 1
+
+                    # Emit one mapping row per original cross-group pair in this pool.
+                    right_start = left_chain_count
+                    for ridx, right_i in enumerate(pooled_right):
+                        right_count = right_chain_counts[ridx]
+                        right_indices_pair = ",".join(
+                            str(idx) for idx in range(right_start, right_start + right_count)
+                        )
+                        right_str_ids_pair = ",".join(
+                            int_id_to_str_id(idx) for idx in range(right_start, right_start + right_count)
+                        )
+                        report_id = f"{ids[left_i]}-{ids[right_i]}"
+                        mapping_file.write(
+                            f"{interaction_id}\\t"
+                            f"{left_chain_indices}:{right_indices_pair}\\t"
+                            f"{left_chain_str_ids}:{right_str_ids_pair}\\t"
+                            f"{report_id}\\t{ids[left_i]}\\t{ids[right_i]}\\n"
+                        )
+                        right_start += right_count
 
     if interactions_cntr == 0:
         print("No interaction pools found!!")

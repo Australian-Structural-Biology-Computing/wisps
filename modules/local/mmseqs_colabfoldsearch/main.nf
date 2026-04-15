@@ -37,7 +37,6 @@ process MMSEQS_COLABFOLDSEARCH {
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_search: \$(pip list | grep "^colabfold" | awk '{print \$2}')
-        alphafold_colabfold: \$(pip list | grep "^alphafold-colabfold" | awk '{print \$2}')
         mmseqs: \$(mmseqs version)
     END_VERSIONS
     """

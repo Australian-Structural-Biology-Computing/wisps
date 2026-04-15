@@ -43,13 +43,10 @@ These files are generated once from the interaction FASTA and reused by downstre
 
 - `run/` (outputs from both Boltz and AlphaFold3 modules)
   - Boltz:
-    - `boltz_results_*/predictions/*/*.cif` and optional `*.pdb`: predicted structures.
+    - `boltz_results_*/predictions/*/*.cif`: predicted structures.
     - `boltz_results_*/predictions/*/confidence_*.json`: confidence metrics.
     - `boltz_results_*/predictions/*/affinity_*.json`: affinity predictions (if produced).
     - `boltz_results_*/predictions/*/pae_*.npz`: PAE matrices.
-    - `boltz_results_*/predictions/*/plddt_*.npz`: per-residue confidence arrays.
-    - `boltz_results_*/processed/structures/*.npz`: processed structure arrays.
-    - `boltz_results_*/processed/msa/*.npz`: processed MSA arrays.
   - AlphaFold3:
     - `out/*/*_model.cif`: top-ranked model structures.
     - `out/*/*_confidences.json`: detailed confidence output.
@@ -57,7 +54,6 @@ These files are generated once from the interaction FASTA and reused by downstre
 - `colabfold/`
   - `*_relaxed_rank_001_*_model_*.pdb`: relaxed top-ranked ColabFold structures.
   - `*_scores_rank_001_*.json`: model score summaries.
-  - `*_coverage.png`: MSA coverage plots.
 
 </details>
 
@@ -67,7 +63,7 @@ These files are generated once from the interaction FASTA and reused by downstre
 <summary>Output files</summary>
 
 - `ipsae/`
-  - `*.pml`, `*_byres.txt`, `*<digit>.txt`: IPSAE per-structure analysis outputs.
+  - `data/*<digit>.txt`: IPSAE per-structure analysis outputs.
   - `ipsae_scores.csv`: per-interaction summary table with maximum cross-group IPSAE scores by model.
   - `ipsae_scores_<pair>.csv`: per-chain-pair IPSAE tables across all interactions.
 - `collect/`

@@ -18,7 +18,9 @@
 // MODULE: Installed directly from nf-core/modules
 //
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
-include { COLLECT_CONFIDENCE } from '../modules/local/collect_confidence'
+include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_BOLTZ } from '../modules/local/collect_confidence'
+include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_COLABFOLD } from '../modules/local/collect_confidence'
+include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_AF3 } from '../modules/local/collect_confidence'
 //
 // SUBWORKFLOW: Consisting entirely of nf-core/modules
 //
@@ -170,13 +172,16 @@ workflow WISPS {
 
             lines.drop(1).each { line ->
                 def cols = line.split("\t", -1)
-                if (cols.size() != 3) {
+                if (cols.size() < 3) {
                     throw new IllegalStateException("Invalid interaction mapping row in ${mapping_tsv}: '${line}'")
                 }
                 def interaction_id = cols[0].trim()
                 def int_chain_map = cols[1].trim()
                 def str_chain_map = cols[2].trim()
-                out << [interaction_id, int_chain_map, str_chain_map]
+                def report_id = cols.size() > 3 && cols[3].trim() ? cols[3].trim() : interaction_id
+                def left_source_id = cols.size() > 4 ? cols[4].trim() : ""
+                def right_source_id = cols.size() > 5 ? cols[5].trim() : ""
+                out << [interaction_id, int_chain_map, str_chain_map, report_id, left_source_id, right_source_id]
             }
             out
         }
@@ -208,7 +213,7 @@ workflow WISPS {
                 def interaction_id = cols[0].trim()
                 def int_chain_map = cols[1].trim()
                 def str_chain_map = cols[2].trim()
-                out << [interaction_id, int_chain_map, str_chain_map]
+                out << [interaction_id, int_chain_map, str_chain_map, interaction_id, "", ""]
             }
             out
         }
@@ -247,22 +252,28 @@ workflow WISPS {
 
     if ("manual" in interaction_mode) {
         ch_interaction_info = ch_interaction_has_protein
-            .map { interaction_id, _ -> [interaction_id, "", ""] }
+            .map { interaction_id, _ -> [interaction_id, "", "", interaction_id, "", ""] }
     }
 
-    ch_interaction_has_protein
-    .join(ch_interaction_info)
-    .map { interaction_id, has_protein, int_chain_map, str_chain_map ->
-        [
-            [
+    ch_interaction_has_protein_map = ch_interaction_has_protein
+        .collect(flat: false)
+        .map { rows ->
+            rows.collectEntries { row -> [(row[0]): row[1]] }
+        }
+
+    ch_interaction_in = ch_interaction_info
+        .combine(ch_interaction_has_protein_map)
+        .map { interaction_id, int_chain_map, str_chain_map, report_id, left_source_id, right_source_id, has_protein_map ->
+            def has_protein = has_protein_map.containsKey(interaction_id) ? has_protein_map[interaction_id] : false
+            [[
                 "id": interaction_id,
+                "report_id": report_id,
                 "int_chain_map": int_chain_map,
-                "str_chain_map": str_chain_map
-            ],
-            has_protein
-        ]
-    }
-    .set{ch_interaction_in}
+                "str_chain_map": str_chain_map,
+                "left_source_id": left_source_id,
+                "right_source_id": right_source_id
+            ], has_protein]
+        }
 
     ch_interaction_in.count().subscribe{print("total final: ${it}")}
 
@@ -436,9 +447,9 @@ workflow WISPS {
 
 
     ipsae_batch = 0
-    ch_protein_interaction_by_id = ch_interaction_in
+    ch_protein_interaction_by_id = ch_interaction_has_protein
         .filter { it[1] }
-        .map { [it[0].id, it[0]] }
+        .map { [it[0], true] }
 
     ch_colabfold_scores
     .join(ch_colabfold_pdb)
@@ -567,6 +578,11 @@ workflow WISPS {
     .findAll { it in ['boltz','colabfold','alphafold3'] }
 
     // 1) Long format: [sample_id, pair_id, model, score]
+    ch_report_meta_grouped_by_input_id = ch_interaction_in
+        .map { [it[0].id, it[0]] }
+        .groupTuple()
+        .map { inputId, metas -> [inputId, metas] }
+
     ch_long = Channel.empty()
     if ('boltz' in active_modes)
         ch_long = ch_long.mix(ch_ipsae_out.boltz.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'boltz', e[1]] } })
@@ -574,6 +590,17 @@ workflow WISPS {
         ch_long = ch_long.mix(ch_ipsae_out.colabfold.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'colabfold', e[1]] } })
     if ('alphafold3' in active_modes)
         ch_long = ch_long.mix(ch_ipsae_out.alphafold3.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'alphafold3', e[1]] } })
+    ch_long = ch_long
+        .join(ch_report_meta_grouped_by_input_id, remainder: true)
+        .flatMap { inputId, pairId, model, score, metaList ->
+            def metas = (metaList instanceof List && !metaList.isEmpty())
+                ? metaList
+                : [[report_id: inputId, str_chain_map: ""]]
+            metas.collect { interaction_meta ->
+                def reportId = interaction_meta?.report_id ?: inputId
+                [reportId, pairId, model, score]
+            }
+        }
 
     // 2) Pivot per pair: [pair_id, sampleModelScoreMap]
     ch_pair_wide = ch_long
@@ -588,7 +615,7 @@ workflow WISPS {
         }
 
     // 3) Create one CSV per pair with model-only headers
-    ch_interaction_in.map { it[0].id }.unique().toSortedList().map { [sample_ids: it] }
+    ch_interaction_in.map { it[0].report_id }.unique().toSortedList().map { [sample_ids: it] }
         .combine(ch_pair_wide.collect(flat: false).map { [pairs: it] })
         .flatMap { left, right ->
             def ids = left.sample_ids
@@ -613,27 +640,26 @@ workflow WISPS {
         .set { ch_ipsae_scores_by_pair }
 
     // 4) Additional summary file: max cross-group (left/right in str_chain_map) IPSAE per sample/model
-    ch_str_chain_map_by_id = ch_interaction_in.map { [it[0].id, it[0].str_chain_map] }
+    ch_ipsae_entries = Channel.empty()
+    if ('boltz' in active_modes)
+        ch_ipsae_entries = ch_ipsae_entries.mix(ch_ipsae_out.boltz.map { inputId, entries -> [inputId, "boltz", entries] })
+    if ('colabfold' in active_modes)
+        ch_ipsae_entries = ch_ipsae_entries.mix(ch_ipsae_out.colabfold.map { inputId, entries -> [inputId, "colabfold", entries] })
+    if ('alphafold3' in active_modes)
+        ch_ipsae_entries = ch_ipsae_entries.mix(ch_ipsae_out.alphafold3.map { inputId, entries -> [inputId, "alphafold3", entries] })
 
-    ch_model_rows = ch_ipsae_out.boltz
-        .join(ch_str_chain_map_by_id, remainder: true)
-        .map { sampleId, entries, strChainMap ->
-            [[sampleId, "boltz"], computeMaxCrossGroupIpsae(entries, strChainMap)]
+    ch_model_rows = ch_ipsae_entries
+        .combine(ch_report_meta_grouped_by_input_id, by: 0)
+        .flatMap { inputId, model, entries, metaList ->
+            def metas = (metaList instanceof List && !metaList.isEmpty())
+                ? metaList
+                : [[report_id: inputId, str_chain_map: ""]]
+            metas.collect { interaction_meta ->
+                def reportId = interaction_meta?.report_id ?: inputId
+                def strChainMap = interaction_meta?.str_chain_map ?: ""
+                [[reportId, model], computeMaxCrossGroupIpsae(entries, strChainMap)]
+            }
         }
-        .mix(
-            ch_ipsae_out.colabfold
-                .join(ch_str_chain_map_by_id, remainder: true)
-                .map { sampleId, entries, strChainMap ->
-                    [[sampleId, "colabfold"], computeMaxCrossGroupIpsae(entries, strChainMap)]
-                }
-        )
-        .mix(
-            ch_ipsae_out.alphafold3
-                .join(ch_str_chain_map_by_id, remainder: true)
-                .map { sampleId, entries, strChainMap ->
-                    [[sampleId, "alphafold3"], computeMaxCrossGroupIpsae(entries, strChainMap)]
-                }
-        )
 
     ch_model_wide = ch_model_rows
         .groupTuple()
@@ -645,7 +671,7 @@ workflow WISPS {
         }
 
     def summary_header = "Sample," + active_modes.join(",") + "\n"
-    ch_interaction_in.map { it[0].id }.unique().map { [it, true] }
+    ch_interaction_in.map { it[0].report_id }.unique().map { [it, true] }
         .join(ch_model_wide, remainder: true)
         .map { id, _, m ->
             def mm = m ?: [:]
@@ -663,59 +689,45 @@ workflow WISPS {
 
     ch_ipsae_scores = ch_ipsae_scores_by_pair.mix(ch_ipsae_scores_max)
 
-    ch_interaction_meta_by_id = ch_interaction_in
-        .map { [it[0].id, it[0]] }
+    ch_confidence_meta = ch_interaction_in
+        .map { it[0] }
+        .unique { it.report_id ?: "${it.id}:${it.int_chain_map}:${it.str_chain_map}" }
+        .collect(flat: false, sort: true)
 
-    ch_boltz_confidence_with_meta = ch_boltz_confidence
-    .map { [it[0].id, it[1]] }
-    .join(ch_interaction_meta_by_id)
-    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
+    ch_boltz_confidence_json = ch_boltz_confidence
+        .map { it[1] }
+        .mix(ch_boltz_affinity.map { it[1] })
+        .collect(flat: false, sort: true)
 
-    ch_boltz_affinity_with_meta = ch_boltz_affinity
-    .map { [it[0].id, it[1]] }
-    .join(ch_interaction_meta_by_id)
-    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
+    ch_alphafold3_confidence_json = ch_alphafold3_summary_confidences
+        .map { it[1] }
+        .collect(flat: false, sort: true)
 
-    ch_boltz_confidence_with_meta
-    .mix(ch_boltz_affinity_with_meta)
-    .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0]}.unique{it.id}
-        json: json_list.collect{it[1]}
-    }.set{ch_boltz_confidence_scores}
-
-    ch_alphafold3_summary_confidences
-    .map { [it[0].id, it[1]] }
-    .join(ch_interaction_meta_by_id)
-    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
-    .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0]}.unique{it.id}
-        json: json_list.collect{it[1]}
-    }.set{ch_alphafold3_confidence_scores}
-
-    ch_colabfold_scores
-    .map { [it[0].id, it[1]] }
-    .join(ch_interaction_meta_by_id)
-    .map { id, json_file, interaction_meta -> [interaction_meta, json_file] }
-    .collect(flat: false, sort: true).multiMap{json_list ->
-        ids: json_list.collect{it[0]}.unique{it.id}
-        json: json_list.collect{it[1]}
-    }.set{ch_colabfold_confidence_scores}
+    ch_colabfold_confidence_json = ch_colabfold_scores
+        .map { it[1] }
+        .collect(flat: false, sort: true)
 
 
-    COLLECT_CONFIDENCE(
-        ch_boltz_confidence_scores.ids
-        .map{[["id": "all-boltz", "model": "boltz"], it]}
-        .mix(ch_colabfold_confidence_scores.ids
-            .map{[["id": "all-colabfold", "model": "colabfold"], it]}
-        )
-        .mix(ch_alphafold3_confidence_scores.ids
-            .map{[["id": "all-alphafold3", "model": "alphafold3"], it]}
-        ),
-        ch_boltz_confidence_scores.json
-        .mix(ch_colabfold_confidence_scores.json)
-        .mix(ch_alphafold3_confidence_scores.json)
+    COLLECT_CONFIDENCE_BOLTZ(
+        ch_confidence_meta.map{[["id": "all-boltz", "model": "boltz"], it]},
+        ch_boltz_confidence_json
     )
-    ch_versions = ch_versions.mix(COLLECT_CONFIDENCE.out.versions)
+    ch_versions = ch_versions.mix(COLLECT_CONFIDENCE_BOLTZ.out.versions)
+    ch_confidence_scores_all = COLLECT_CONFIDENCE_BOLTZ.out.confidence
+
+    COLLECT_CONFIDENCE_COLABFOLD(
+        ch_confidence_meta.map{[["id": "all-colabfold", "model": "colabfold"], it]},
+        ch_colabfold_confidence_json
+    )
+    ch_versions = ch_versions.mix(COLLECT_CONFIDENCE_COLABFOLD.out.versions)
+    ch_confidence_scores_all = ch_confidence_scores_all.mix(COLLECT_CONFIDENCE_COLABFOLD.out.confidence)
+
+    COLLECT_CONFIDENCE_AF3(
+        ch_confidence_meta.map{[["id": "all-alphafold3", "model": "alphafold3"], it]},
+        ch_alphafold3_confidence_json
+    )
+    ch_versions = ch_versions.mix(COLLECT_CONFIDENCE_AF3.out.versions)
+    ch_confidence_scores_all = ch_confidence_scores_all.mix(COLLECT_CONFIDENCE_AF3.out.confidence)
 
 
 
@@ -742,7 +754,7 @@ workflow WISPS {
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
     ch_multiqc_files = ch_multiqc_files
-                        .mix(COLLECT_CONFIDENCE.out.confidence.map{it[1]})
+                        .mix(ch_confidence_scores_all.map{it[1]})
                         .mix(ch_ipsae_scores)
     MULTIQC (
         ch_multiqc_files.collect(sort: true),

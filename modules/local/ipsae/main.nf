@@ -12,8 +12,6 @@ process IPSAE {
     path ("data/")
 
     output:
-    tuple val(meta), path ("data/*.pml"), emit: pml
-    tuple val(meta), path ("data/*_byres.txt"), emit: byres
     tuple val(meta), path ("data/*[0-9].txt"), emit: txt
     path "versions.yml"        , emit: versions
 
