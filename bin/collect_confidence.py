@@ -368,7 +368,7 @@ def extract_colabfold_results(json_files, samples, output_csv, sample_meta_by_id
             data = json.load(f)
 
         result = {}
-        for key in ["iptm", "pae", "ptm", "plddt", "pairwise_iptm"]:
+        for key in ["iptm", "ptm", "plddt", "pairwise_iptm"]:
             if key not in data:
                 result[key] = None
                 continue
