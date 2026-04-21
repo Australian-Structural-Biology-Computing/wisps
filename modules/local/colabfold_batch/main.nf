@@ -3,7 +3,8 @@ process COLABFOLD_BATCH {
     label 'process_medium'
     label 'process_gpu'
 
-    container "nf-core/proteinfold_colabfold:dev"
+    //container "nf-core/proteinfold_colabfold:dev"
+    container "ghcr.io/tlitfin/wisps-colabfold-batch:1.1"
 
     input:
     tuple val(meta), path("alignment/*")
@@ -12,7 +13,7 @@ process COLABFOLD_BATCH {
 
     output:
     tuple val(meta), path ("*relaxed_rank_001_*_model_*.pdb")     , emit: pdb
-    tuple val(meta), path ("*_coverage.png")          , emit: msa
+    //tuple val(meta), path ("*_coverage.png")          , emit: msa
     tuple val(meta), path ("*_scores_rank_001_*.json")    , emit: top_ranked_scores
     path "versions.yml"                               , emit: versions
 
@@ -43,6 +44,7 @@ process COLABFOLD_BATCH {
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')
+        alphafold_colabfold: \$(pip list | grep "^alphafold-colabfold" | awk '{print \$2}')
     END_VERSIONS
     """
 
@@ -62,6 +64,7 @@ process COLABFOLD_BATCH {
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         colabfold_batch: \$(pip list | grep "^colabfold" | awk '{print \$2}')
+        alphafold_colabfold: \$(pip list | grep "^alphafold-colabfold" | awk '{print \$2}')
     END_VERSIONS
     """
 }

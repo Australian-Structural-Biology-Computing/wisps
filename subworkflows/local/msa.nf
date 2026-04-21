@@ -11,8 +11,8 @@ workflow MSA {
 
     take:
     ch_samplesheet
-    ch_colabfold_db        // channel: path(colabfold_db)
-    ch_uniref30            // channel: path(uniref30)
+    ch_colabfold_envdb        // channel: path(colabfold_envdb)
+    ch_colabfold_uniref30            // channel: path(colabfold_uniref30)
     batch_size
 
     main:
@@ -69,8 +69,8 @@ workflow MSA {
 
     MMSEQS_COLABFOLDSEARCH (
         ch_input_seqs,
-        ch_colabfold_db,
-        ch_uniref30
+        ch_colabfold_envdb,
+        ch_colabfold_uniref30
     )
     ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
 

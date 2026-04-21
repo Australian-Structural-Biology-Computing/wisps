@@ -43,12 +43,6 @@
                     "fa_icon": "fas fa-cogs",
                     "errorMessage": "Tools must be a comma-separated list containing any combination of 'alphafold3', 'colabfold', or 'boltz' with no spaces."
                 },
-                "mmseqs_batch_size": {
-                    "type": "integer",
-                    "default": 10000,
-                    "description": "Number of samples in each mmseq run (batching leads to higher performance time in total.)",
-                    "fa_icon": "fas fa-microchip"
-                },
                 "analysis_batch_size": {
                     "type": "integer",
                     "default": 20,
@@ -61,11 +55,23 @@
                     "description": "Number of ColabFold samples to be processed in the analysis after multiple single alignment",
                     "fa_icon": "fas fa-microchip"
                 },
-                "interaction_threshold": {
+                "interaction_neighbours": {
                     "type": "integer",
                     "default": 0,
                     "description": "Local neighbourhood to model in all-by-all mode",
                     "fa_icon": "fas fa-microchip"
+                },
+                "pool": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable interaction pooling mode. When true, group pairs are read from --mode instead of standard interaction pairing.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "pool_size": {
+                    "type": "integer",
+                    "default": 2000,
+                    "description": "Maximum total sequence length per interaction pool (required when --pool is set).",
+                    "fa_icon": "fas fa-ruler-horizontal"
                 },
                 "use_gpu": {
                     "type": "boolean",
@@ -103,15 +109,12 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["input", "outdir"],
             "properties": {
-                "colabfold_db": {
+                "db": {
                     "type": "string",
-                    "format": "path",
-                    "exists": true,
-                    "description": "Specifies the PARAMS and DB path used by 'colabfold'  mode",
-                    "fa_icon": "fas fa-folder-open",
-                    "errorMessage": "Please provide a valid path to ColabFold database"
+                    "description": "Path to reference data and model parameters",
+                    "fa_icon": "fas fa-folder-open"
                 },
-                "uniref30": {
+                "colabfold_uniref30": {
                     "type": "string",
                     "description": "Link to the UniRef30 database",
                     "fa_icon": "fas fa-folder-open"
@@ -131,7 +134,7 @@
                     "type": "string",
                     "description": "Link to the ColabFold database",
                     "fa_icon": "fas fa-folder-open",
-                    "default": "colabfold_uniref30/uniref30_2302_db"
+                    "default": "colabfold_envdb/colabfold_envdb_202108_db"
                 },
                 "spire_db": {
                     "type": "string",
@@ -145,12 +148,10 @@
                 },
                 "boltz2_aff": {
                     "type": "string",
-                    "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_aff.ckpt",
                     "description": "Path to boltz affinity file"
                 },
                 "boltz2_conf": {
                     "type": "string",
-                    "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_conf.ckpt",
                     "description": "Path to boltz-2 conf file"
                 },
                 "boltz2_mols": {

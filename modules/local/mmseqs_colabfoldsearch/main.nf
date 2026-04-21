@@ -2,7 +2,7 @@ process MMSEQS_COLABFOLDSEARCH {
     tag "$meta.id"
     label 'process_high_memory'
 
-    container "ghcr.io/tlitfin/wisps-colabfold-search:1.0"
+    container "ghcr.io/tlitfin/wisps-colabfold-search:1.1"
 
     input:
     tuple val(meta), path(fasta)
@@ -12,6 +12,8 @@ process MMSEQS_COLABFOLDSEARCH {
     output:
     tuple val(meta), path("**.a3m"), emit: a3m
     tuple val(meta), path("**.json"), emit: json, optional: true
+    tuple val(meta), path("**.yaml"), emit: yaml, optional: true
+    tuple val(meta), path("**.csv"), emit: msa_csv, optional: true
     path "versions.yml", emit: versions
 
     when:
@@ -34,9 +36,8 @@ process MMSEQS_COLABFOLDSEARCH {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        colabfold_search: \$(conda run -n colabfold pip list | grep "^colabfold" | awk '{print \$2}')
-        alphafold_colabfold: \$(conda run -n colabfold pip list | grep "^alphafold-colabfold" | awk '{print \$2}')
-        mmseqs: \$(mamba run --name colab mmseqs version)
+        colabfold_search: \$(pip list | grep "^colabfold" | awk '{print \$2}')
+        mmseqs: \$(mmseqs version)
     END_VERSIONS
     """
 
