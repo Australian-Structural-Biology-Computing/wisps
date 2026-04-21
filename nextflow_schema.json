@@ -51,8 +51,20 @@
                 },
                 "analysis_batch_size": {
                     "type": "integer",
-                    "default": 10000,
-                    "description": "Number of samples to be processes in teh analysis after multiple single alignment",
+                    "default": 20,
+                    "description": "Number of samples to be processed in the analysis after multiple single alignment",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "colabfold_batch_size": {
+                    "type": "integer",
+                    "default": 20,
+                    "description": "Number of ColabFold samples to be processed in the analysis after multiple single alignment",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "interaction_threshold": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Local neighbourhood to model in all-by-all mode",
                     "fa_icon": "fas fa-microchip"
                 },
                 "use_gpu": {
@@ -84,7 +96,7 @@
                 }
             }
         },
-        "dbs_weights_ptions": {
+        "dbs_weights_options": {
             "title": "Databases options",
             "type": "object",
             "fa_icon": "fas fa-terminal",
@@ -131,18 +143,6 @@
                     "description": "Link to the Alphafold2 parameters for Colabfold",
                     "fa_icon": "fas fa-folder-open"
                 },
-                "boltz_ccd": {
-                    "type": "string",
-                    "description": "Path to CCD file",
-                    "icon": "fas folder-open",
-                    "default": "https://huggingface.co/boltz-community/boltz-1/resolve/main/ccd.pkl"
-                },
-                "boltz_model": {
-                    "type": "string",
-                    "description": "Path to boltz Model file",
-                    "icon": "fas folder-open",
-                    "default": "https://huggingface.co/boltz-community/boltz-1/resolve/main/boltz1_conf.ckpt"
-                },
                 "boltz2_aff": {
                     "type": "string",
                     "default": "https://huggingface.co/boltz-community/boltz-2/resolve/main/boltz2_aff.ckpt",
@@ -178,18 +178,6 @@
                     "minimum": 1,
                     "maximum": 20,
                     "errorMessage": "Number of recycles must be a whole number between 1 and 20"
-                },
-                "colabfold_model_preset": {
-                    "type": "string",
-                    "default": "alphafold2_multimer_v3",
-                    "description": "Model preset for 'colabfold' mode",
-                    "enum": [
-                        "alphafold2_ptm",
-                        "alphafold2_multimer_v1",
-                        "alphafold2_multimer_v2",
-                        "alphafold2_multimer_v3"
-                    ],
-                    "fa_icon": "fas fa-stream"
                 },
                 "colabfold_search_args": {
                     "type": "string",
@@ -358,7 +346,7 @@
             "$ref": "#/$defs/input_output_options"
         },
         {
-            "$ref": "#/$defs/dbs_weights_ptions"
+            "$ref": "#/$defs/dbs_weights_options"
         },
         {
             "$ref": "#/$defs/models_options"

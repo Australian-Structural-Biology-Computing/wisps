@@ -11,9 +11,8 @@ process RUN_ALPHAFOLD3 {
     path "params/*"
     output:
     tuple val(meta), path ("out/*/*_model.cif")       , emit: top_ranked_cif
-    tuple val(meta), path ("out/*/*_confidences.json")   , emit: confidence
-    tuple val(meta), path ("out/*/*_summary_confidences.json")   , emit: summary_confidences
-    path "versions.yml"                                     , emit: versions
+    tuple val(meta), path ("out/*/*_confidences.json"), emit: jsons
+    path "versions.yml"                               , emit: versions
     when:
     task.ext.when == null || task.ext.when
     script:

@@ -2,7 +2,7 @@ process MMSEQS_COLABFOLDSEARCH {
     tag "$meta.id"
     label 'process_high_memory'
 
-    container "/g/data/ll61/colabfold_search-gpu.sif"
+    container "ghcr.io/tlitfin/wisps-colabfold-search:1.0"
 
     input:
     tuple val(meta), path(fasta)
@@ -25,7 +25,7 @@ process MMSEQS_COLABFOLDSEARCH {
     def args = task.ext.args ?: ''
 
     """
-    mamba run --name colab colabfold_search \\
+    colabfold_search \\
         $args \\
         --threads $task.cpus \\
         ${fasta} \\
