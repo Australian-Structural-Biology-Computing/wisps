@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/nf-core/wisps/master/nextflow_schema.json",
-    "title": "nf-core/wisps pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/Australian-Structural-Biology-Computing/wisps/master/nextflow_schema.json",
+    "title": "Australian-Structural-Biology-Computing/wisps pipeline parameters",
     "description": "Workflow for Interaction Screening by predicting Structure",
     "type": "object",
     "$defs": {

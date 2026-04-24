@@ -1,4 +1,4 @@
-# nf-core/wisps: Output
+# Australian-Structural-Biology-Computing/wisps: Output
 
 ## Introduction
 

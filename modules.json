@@ -1,6 +1,6 @@
 {
-    "name": "nf-core/wisps",
-    "homePage": "https://github.com/nf-core/wisps",
+    "name": "Australian-Structural-Biology-Computing/wisps",
+    "homePage": "https://github.com/Australian-Structural-Biology-Computing/wisps",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {

@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/nf-core/wisps/master/assets/schema_input.json",
-    "title": "nf-core/wisps pipeline - params.input schema",
+    "$id": "https://raw.githubusercontent.com/Australian-Structural-Biology-Computing/wisps/master/assets/schema_input.json",
+    "title": "Australian-Structural-Biology-Computing/wisps pipeline - params.input schema",
     "description": "Schema for the file provided with params.input",
     "type": "array",
     "items": {

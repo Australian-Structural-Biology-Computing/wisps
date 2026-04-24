@@ -1,4 +1,4 @@
-# nf-core/wisps: Citations
+# Australian-Structural-Biology-Computing/wisps: Citations
 
 ## [nf-core](https://pubmed.ncbi.nlm.nih.gov/32055031/)
 

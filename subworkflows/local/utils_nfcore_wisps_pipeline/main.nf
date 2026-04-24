@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the nf-core/wisps pipeline
+// Subworkflow with functionality specific to the Australian-Structural-Biology-Computing/wisps pipeline
 //
 
 /*

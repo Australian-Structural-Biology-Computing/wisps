@@ -1,11 +1,9 @@
 #!/usr/bin/env nextflow
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    nf-core/wisps
+    Australian-Structural-Biology-Computing/wisps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/nf-core/wisps
-    Website: https://nf-co.re/wisps
-    Slack  : https://nfcore.slack.com/channels/wisps
+    Github : https://github.com/Australian-Structural-Biology-Computing/wisps
 ----------------------------------------------------------------------------------------
 */
 /*
@@ -24,7 +22,7 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_wisp
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow NFCORE_WISPS {
+workflow WF_WISPS {
     take:
     samplesheet // channel: samplesheet read in from --input
     main:
@@ -56,7 +54,7 @@ workflow NFCORE_WISPS {
     //
     // WORKFLOW: Run pipeline
     //
-
+    
         WISPS (
             ch_samplesheet,
             params.mode,
@@ -107,7 +105,7 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    NFCORE_WISPS (
+    WF_WISPS (
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //
@@ -120,7 +118,7 @@ workflow {
         params.outdir,
         params.monochrome_logs,
         params.hook_url,
-        NFCORE_WISPS.out.multiqc_report
+        WF_WISPS.out.multiqc_report
     )
 }
 /*
