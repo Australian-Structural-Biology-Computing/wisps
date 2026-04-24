@@ -1,13 +1,16 @@
 # Australian-Structural-Biology-Computing/wisps: Usage
 
 ## Samplesheet input
+
 tities/chains in a complex.
-   - Use `molecule_type|sequence` for non-protein entities (for example `dna|ATCG`, `rna|AUGC`, `ccd|ATP`, `smiles|...`; optional copies like `ccd|ATP|2`).
-   - If SMILES contains aromatic bonds, replace `:` with `;` as required by ColabFold parsing.
+
+- Use `molecule_type|sequence` for non-protein entities (for example `dna|ATCG`, `rna|AUGC`, `ccd|ATP`, `smiles|...`; optional copies like `ccd|ATP|2`).
+- If SMILES contains aromatic bonds, replace `:` with `;` as required by ColabFold parsing.
 
 Reference: ColabFold input format examples in the official repository README: <https://github.com/sokrypton/ColabFold>.
 
 ## Running the pipeline
+
 You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
 
 ```bash
@@ -28,7 +31,7 @@ S3,S3.fasta,A,rna
 | Column     | Description                                                                                                                                                                                                                                                                                                                                        |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore or hyphen (`_`, `-`).                                                                                                                                                                                                                               |
-| `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa"                                                                                                                                                                                                                                       |
+| `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa"                                                                                                                                                                                                                                                     |
 | `type`     | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                             |
 | `group`    | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`. |
 
@@ -166,6 +169,7 @@ You can also supply a run name to resume a specific run: `-resume [run-name]`. U
 
 Specify the path to a specific config file (this is a core Nextflow command).
 Vii
+
 ## Running in the background
 
 Nextflow handles job submissions and supervises the running jobs. The Nextflow process must run until the pipeline is finished.

@@ -54,7 +54,7 @@ workflow WF_WISPS {
     //
     // WORKFLOW: Run pipeline
     //
-    
+
         WISPS (
             ch_samplesheet,
             params.mode,

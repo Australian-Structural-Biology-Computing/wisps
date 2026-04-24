@@ -333,7 +333,7 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_model_0")[0].split("confidence_")[1], "model": "boltz"], it]}
     .set{ch_boltz_confidence}
-    
+
     RUN_BOLTZ.out.affinity
     .map{it[1]}
     .flatten()
