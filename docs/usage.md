@@ -22,7 +22,7 @@ S3,S3.fasta,A,rna
 | Column     | Description                                                                                                                                                                                                                                                                                                                                        |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore or hyphen (`_`, `-`).                                                                                                                                                                                                                               |
-| `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa"                                                                                                                                                                                                                                       |
+| `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa"                                                                                                                                                                                                                                                     |
 | `type`     | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                             |
 | `group`    | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`. |
 
@@ -45,7 +45,6 @@ The interactions generated from the sample sheet are controlled with `--mode`. T
    - If SMILES contains aromatic bonds, replace `:` with `;` as required by ColabFold parsing.
 
 Reference: ColabFold input format examples in the official repository README: <https://github.com/sokrypton/ColabFold>.
-
 
 ## Running the pipeline
 
