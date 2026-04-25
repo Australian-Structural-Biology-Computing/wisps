@@ -11,6 +11,8 @@
 - Compute confidence and interface metrics, including IPSAE.
 - Aggregate run metrics and QC summaries in [`MultiQC`](http://multiqc.info/).
 
+![Workflow Diagram](docs/images/wf.jpg)
+
 ## Usage
 
 > [!NOTE]
@@ -82,7 +84,7 @@ For more details about the output files and reports, please refer to the
 
 ## Credits
 
-Australian-Structural-Biology-Computing/wisps was originally written by [Ziad Al-Bkhetan](https://github.com/ziadbkh) and [Thomas Liftin](https://github.com/tlitfin/).
+Australian-Structural-Biology-Computing/wisps was originally written by [Ziad Al-Bkhetan](https://github.com/ziadbkh) and [Thomas Litfin](https://github.com/tlitfin/).
 
 We thank the following people for their extensive assistance in the development of this pipeline:
 
