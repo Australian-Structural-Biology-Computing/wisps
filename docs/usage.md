@@ -92,6 +92,133 @@ The interactions generated from the sample sheet are controlled with `--mode`. T
 
 Reference: ColabFold input format examples in the official repository README: <https://github.com/sokrypton/ColabFold>.
 
+## Pipeline parameters
+
+### General Help Options
+
+- `--help` `[boolean, string]`
+  Show help for top-level parameters. If a parameter is provided, shows detailed help for that parameter.
+
+- `--help_full` `[boolean]`
+  Show help for all non-hidden parameters.
+
+- `--show_hidden` `[boolean]`
+  Show hidden parameters (must be used with `--help` or `--help_full`).
+
+---
+
+### Input / Output Options
+
+- `--input` `[string]`
+  Path to CSV file describing samples.
+
+- `--outdir` `[string]`
+  Output directory for results (must be an absolute path in cloud environments).
+
+- `--mode` `[string]`
+  Interaction mode:
+
+  - `all-all`
+  - `group-group` (uses `group` column in samplesheet)
+    Multiple group-group combinations allowed (comma-separated, no spaces).
+    **Default:** `all-all`
+
+- `--tools` `[string]`
+  Models to run (comma-separated, no spaces):
+  `alphafold3`, `colabfold`, `boltz`
+  **Default:** `boltz,colabfold`
+
+- `--analysis_batch_size` `[integer]`
+  Number of samples processed in one batch by boltz and Alphafold3.
+  **Default:** `20`
+
+- `--colabfold_batch_size` `[integer]`
+  Number of samples processed in one batch by ColabFold.
+  **Default:** `20`
+
+- `--interaction_neighbours` `[integer]`
+  Local neighbourhood size for all-by-all mode.
+  **Default:** `0` which means no limit and all samples will be considered.
+
+- `--pool` `[boolean]`
+  Enable interaction pooling mode (uses `--mode` group pairs).
+  **Default:** `false`
+
+- `--pool_size` `[integer]`
+  Max total sequence length per pool (required if pooling).
+  **Default:** `2000`
+
+- `--mmseqs_gpu` `[boolean]`
+  Run mmseqs on GPU.
+
+- `--use_spire_db` `[boolean]`
+  Use Spire database.
+
+---
+
+## Database Options
+
+- `--db` `[string]`
+  Path to reference data and model parameters.
+
+- `--colabfold_uniref30` `[string]`
+  UniRef30 database.
+
+- `--colabfold_envdb` `[string]`
+  ColabFold environment database.
+
+- `--colabfold_uniref30_prefix` `[string]`
+  Default: `colabfold_uniref30/uniref30_2302_db`
+
+- `--colabfold_envdb_prefix` `[string]`
+  Default: `colabfold_envdb/colabfold_envdb_202108_db`
+
+- `--spire_db` `[string]`
+  Spire database.
+
+- `--colabfold_alphafold2_params` `[string]`
+  AlphaFold2 parameters for ColabFold.
+
+- `--boltz2_aff` `[string]`
+  Boltz affinity file.
+
+- `--boltz2_conf` `[string]`
+  Boltz-2 config file.
+
+- `--boltz2_mols` `[string]`
+  Boltz-2 molecule files.
+
+- `--alphafold3_params` `[string]`
+  AlphaFold3 parameters.
+
+---
+
+## tools Options
+
+- `--colabfold_num_recycles` `[integer]`
+  Number of recycles.
+  **Default:** `3`
+
+- `--ipsae_pae_cutoff` `[integer]`
+  PAE cutoff.
+  **Default:** `10`
+
+- `--ipsae_dist_cutoff` `[integer]`
+  Distance cutoff.
+  **Default:** `10`
+
+---
+
+## Generic Options
+
+- `--version` `[boolean]`
+  Show version and exit.
+
+- `--publish_dir_mode` `[string]`
+  Output method:
+  `symlink`, `rellink`, `link`, `copy`, `copyNoFollow`, `move`
+  **Default:** `symlink`
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:

@@ -75,7 +75,7 @@ nextflow run Australian-Structural-Biology-Computing/wisps \
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_.
 
-For more details and further functionality, please refer to the [usage documentation](docs/usage.md).
+For more details and further functionality and pipeline's pparameters, please refer to the [usage documentation](docs/usage.md).
 
 ## Pipeline output
 
