@@ -40,6 +40,14 @@ process RUN_BOLTZ {
 
     boltz predict fasta ${args} --cache ./
 
+    # Fail fast if Boltz silently skipped structures (e.g. OOM).
+    n_fasta=\$(ls fasta/*.yaml | wc -l)
+    n_cif=\$(find boltz_results_* -type f -name '*model_0.cif' 2>/dev/null | wc -l)
+    if [[ "\$n_fasta" -ne "\$n_cif" ]]; then
+        echo "ERROR: RUN_BOLTZ incomplete batch. yaml files: \$n_fasta, CIF files: \$n_cif" >&2
+        exit 1
+    fi
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         boltz: $version
