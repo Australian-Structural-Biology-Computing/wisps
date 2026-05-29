@@ -73,6 +73,12 @@
                     "description": "Maximum total sequence length per interaction pool (required when --pool is set).",
                     "fa_icon": "fas fa-ruler-horizontal"
                 },
+                "iptm_threshold": {
+                    "type": "number",
+                    "default": 0,
+                    "description": "Minimum iptm threshold to filter out predictions. Default is 0, and all predicitons will be ppublished in the output directory.",
+                    "fa_icon": "fas fa-microchip"
+                },
                 "use_gpu": {
                     "type": "boolean",
                     "description": "Run on CPUs (default) or GPUs for the models",

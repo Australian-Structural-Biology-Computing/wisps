@@ -79,6 +79,7 @@ workflow WISPS {
     interaction_neighbours
     pool
     pool_size
+    iptm_threshold
 
     main:
     ch_multiqc_files = Channel.empty()
@@ -275,7 +276,7 @@ workflow WISPS {
             ], has_protein]
         }
 
-    ch_interaction_in.count().subscribe{print("total final: ${it}")}
+    //ch_interaction_in.count().subscribe{print("total final: ${it}")}
 
     MMSEQS_COLABFOLDSEARCH (
         ch_interaction_raw.map{[["id": "all_run"], it]},
@@ -326,7 +327,6 @@ workflow WISPS {
         ch_boltz2_conf,
         ch_mols
     )
-
 
     RUN_BOLTZ.out.confidence
     .map{it[1]}
@@ -770,9 +770,41 @@ workflow WISPS {
         []
     )
 
+    
+    
     ch_versions = ch_versions.mix(MULTIQC.out.versions)
 
     emit:
     versions   = ch_versions
+    collated_versions = ch_collated_versions
+    multiqc_report = MULTIQC.out.report
+    ipsae_report = IPSAE.out.txt
+    msa_a3m  = MMSEQS_COLABFOLDSEARCH.out.a3m
+    msa_json = MMSEQS_COLABFOLDSEARCH.out.json
+    msa_yaml = MMSEQS_COLABFOLDSEARCH.out.yaml
+    msa_csv  = MMSEQS_COLABFOLDSEARCH.out.msa_csv
 
+    colabfold_predictions = ch_colabfold_scores
+                                .join(ch_colabfold_pdb)
+                                .map { ['score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).iptm : null,
+                                        'pdb': it[2],
+                                        'confidence': it[1]] }
+                                .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+    boltz_predictions = ch_boltz_pae
+                            .join(ch_boltz_cif)
+                            .join(ch_boltz_confidence)
+                            .map { ['confidence': it[3], 
+                                    'cif': it[2], 
+                                    'pae': it[1], 
+                                    'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[3].text).iptm : null] }
+                            .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+    af3_predictions = ch_alphafold3_confidence
+                        .join(ch_alphafold3_cif)
+                        .map { ['confidence': it[1], 
+                              'cif': it[2], 
+                              'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).iptm : null] }
+                        .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
 }
+

@@ -77,12 +77,23 @@ workflow WF_WISPS {
             params.colabfold_batch_size,
             params.interaction_neighbours,
             params.pool,
-            params.pool_size
+            params.pool_size,
+            params.iptm_threshold
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
 
     emit:
-    multiqc_report //= WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
+    colabfold_predictions = WISPS.out.colabfold_predictions
+    boltz_predictions = WISPS.out.boltz_predictions
+    af3_predictions = WISPS.out.af3_predictions
+    multiqc_report = WISPS.out.multiqc_report
+    versions   = WISPS.out.versions
+    collated_versions = WISPS.out.collated_versions
+    ipsae_report = WISPS.out.ipsae_report
+    msa_a3m  = WISPS.out.msa_a3m
+    msa_json = WISPS.out.msa_json
+    msa_yaml = WISPS.out.msa_yaml
+    msa_csv  = WISPS.out.msa_csv
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,7 +131,64 @@ workflow {
         params.hook_url,
         WF_WISPS.out.multiqc_report
     )
+
+    publish:
+    colabfold_predictions = WF_WISPS.out.colabfold_predictions
+    boltz_predictions = WF_WISPS.out.boltz_predictions
+    af3_predictions = WF_WISPS.out.af3_predictions
+    multiqc_report = WF_WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
+    //collated_versions = WF_WISPS.out.collated_versions
+    ipsae_report = WF_WISPS.out.ipsae_report
+    msa_a3m  = WF_WISPS.out.msa_a3m.map{it[1]}
+    msa_json = WF_WISPS.out.msa_json.ifEmpty([])
+    msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
+    msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
 }
+
+output {
+    colabfold_predictions {
+        path { sample -> {
+                sample.pdb >> "colabfold_predictions/pdb/"
+                sample.confidence >> "colabfold_predictions/confidence/"        
+            }
+        }
+    }
+    boltz_predictions {
+        path { sample -> {
+                sample.cif >> "boltz_predictions/cif/${sample.cif.name}"
+                sample.pae >> "boltz_predictions/pae/${sample.pae.name}"
+                sample.confidence >> "boltz_predictions/confidence/${sample.confidence.name}"        
+            }
+        }
+    }
+    af3_predictions {
+        path { sample -> {
+                sample.cif >> "alphafold3_predictions/cif/${sample.cif.name}"
+                sample.confidence >> "alphafold3_predictions/confidence/${sample.confidence.name}"        
+            }
+        }
+    }
+    multiqc_report {
+        path 'multiqc_report.html'
+    }
+    ipsae_report {
+        path "ipsae/"
+    }
+    msa_a3m  {
+        path "mmseqs/"
+    }
+    msa_json  {
+        path "mmseqs/"
+    }
+    msa_yaml {
+        path 'mmseqs/'
+    }
+    msa_csv   {
+        path 'mmseqs/'
+    }
+
+}
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     THE END
