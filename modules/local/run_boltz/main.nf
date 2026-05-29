@@ -1,0 +1,79 @@
+/*
+ * Run Boltz
+ */
+process RUN_BOLTZ {
+    tag "$meta.id"
+    label 'process_medium'
+    label 'process_gpu'
+
+    container "nf-core/proteinfold_boltz:2.0.0"
+
+    input:
+    tuple val(meta), path("fasta/*")
+    path(alignments)
+    path ('boltz2_aff.ckpt')
+    path ('boltz2_conf.ckpt')
+    path ('mols')
+
+    output:
+    tuple val(meta), path ("boltz_results_*/predictions/*/confidence*.json")    , emit: confidence
+    tuple val(meta), path ("boltz_results_*/predictions/*/*model_0.cif")        , emit: cif
+    tuple val(meta), path ("boltz_results_*/predictions/*/pae_*model_0.npz")    , emit: pae
+    tuple val(meta), path ("boltz_results_*/predictions/*/affinity_*.json")     , optional: true, emit: affinity
+
+    path "versions.yml", emit: versions
+
+    when:
+    task.ext.when == null || task.ext.when
+
+    script:
+    if (workflow.profile.tokenize(',').intersect(['conda', 'mamba']).size() >= 1) {
+        error("Local RUN_BOLTZ module does not support Conda. Please use Docker / Singularity / Podman instead.")
+    }
+    def version = "2.0.3"
+    def args = task.ext.args ?: ''
+
+    """
+    export NUMBA_CACHE_DIR=./tmp
+    export HOME=./tmp
+    touch mols.tar
+
+    boltz predict fasta ${args} --cache ./
+
+    # Fail fast if Boltz silently skipped structures (e.g. OOM).
+    n_fasta=\$(ls fasta/*.yaml | wc -l)
+    n_cif=\$(find boltz_results_* -type f -name '*model_0.cif' 2>/dev/null | wc -l)
+    if [[ "\$n_fasta" -ne "\$n_cif" ]]; then
+        echo "ERROR: RUN_BOLTZ incomplete batch. yaml files: \$n_fasta, CIF files: \$n_cif" >&2
+        exit 1
+    fi
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        boltz: $version
+    END_VERSIONS
+    """
+
+    stub:
+    def version = "2.0.3"
+    """
+    mkdir -p boltz_results_fasta/processed/msa/
+    mkdir -p boltz_results_fasta/processed/structures/
+    mkdir -p boltz_results_fasta/predictions/
+
+    for f in fasta/*; do
+        [[ -f "\$f" ]] || continue
+        fname=\${f##*/}
+        id=\${fname%%_*}
+        mkdir -p boltz_results_fasta/predictions/\${id}_boltz_interaction_input
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/\${id}_boltz_interaction_input_model_0.cif
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/confidence_\${id}_boltz_interaction_input_model_0.json
+        touch boltz_results_fasta/predictions/\${id}_boltz_interaction_input/pae_\${id}_boltz_interaction_input_model_0.npz
+    done
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        boltz: $version
+    END_VERSIONS
+    """
+}

@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the nf-core/wisps pipeline
+// Subworkflow with functionality specific to the Australian-Structural-Biology-Computing/wisps pipeline
 //
 
 /*
@@ -53,7 +53,13 @@ workflow PIPELINE_INITIALISATION {
     UTILS_NFSCHEMA_PLUGIN (
         workflow,
         validate_params,
-        null
+        null,
+        false,
+        false,         // boolean:  show full help message
+        false,         // boolean:  show hidden parameters in help message
+        "",          // string:   text to show before the help message and parameters summary
+        "",          // string:   text to show after the help message and parameters summary
+        ""           // string:   an example command of the pipeline
     )
 
     //
@@ -67,25 +73,7 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
-    Channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
-        .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
-        }
-        .groupTuple()
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
-        }
-        .set { ch_samplesheet }
+    ch_samplesheet = Channel.fromList(samplesheetToList(params.input, "assets/schema_input.json"))
 
     emit:
     samplesheet = ch_samplesheet
@@ -168,7 +156,7 @@ def toolCitationText() {
     // Uncomment function in methodsDescriptionText to render in MultiQC report
     def citation_text = [
             "Tools used in the workflow included:",
-            
+
             "MultiQC (Ewels et al. 2016)",
             "."
         ].join(' ').trim()
@@ -181,7 +169,7 @@ def toolBibliographyText() {
     // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "<li>Author (2023) Pub name, Journal, DOI</li>" : "",
     // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
-            
+
             "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
         ].join(' ').trim()
 
@@ -224,4 +212,3 @@ def methodsDescriptionText(mqc_methods_yaml) {
 
     return description_html.toString()
 }
-

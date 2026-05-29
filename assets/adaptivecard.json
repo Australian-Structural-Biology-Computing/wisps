@@ -17,7 +17,7 @@
                         "size": "Large",
                         "weight": "Bolder",
                         "color": "<% if (success) { %>Good<% } else { %>Attention<%} %>",
-                        "text": "nf-core/wisps v${version} - ${runName}",
+                        "text": "Australian-Structural-Biology-Computing/wisps v${version} - ${runName}",
                         "wrap": true
                     },
                     {
