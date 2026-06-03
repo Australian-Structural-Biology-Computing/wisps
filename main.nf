@@ -195,9 +195,11 @@ output {
     }
     msa_a3m  {
         path "mmseqs/a3m/"
+        enabled params.save_mmseqs_out
     }
     msa_json  {
         path "mmseqs/json/"
+        enabled params.save_mmseqs_out
     }
     msa_yaml {
         path "mmseqs/yaml/"
