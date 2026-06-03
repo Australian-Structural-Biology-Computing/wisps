@@ -77,23 +77,41 @@ workflow WF_WISPS {
             params.colabfold_batch_size,
             params.interaction_neighbours,
             params.pool,
-            params.pool_size,
-            params.iptm_threshold
+            params.pool_size
         )
         ch_versions = ch_versions.mix(WISPS.out.versions)
 
     emit:
-    colabfold_predictions = WISPS.out.colabfold_predictions
-    boltz_predictions = WISPS.out.boltz_predictions
-    af3_predictions = WISPS.out.af3_predictions
     multiqc_report = WISPS.out.multiqc_report
     versions   = WISPS.out.versions
     collated_versions = WISPS.out.collated_versions
     ipsae_report = WISPS.out.ipsae_report
-    msa_a3m  = WISPS.out.msa_a3m
-    msa_json = WISPS.out.msa_json
-    msa_yaml = WISPS.out.msa_yaml
-    msa_csv  = WISPS.out.msa_csv
+    msa_a3m  = WISPS.out.msa_a3m.map{['a3m': it[1]]}
+    msa_json = WISPS.out.msa_json.map{['json': it[1]]}
+    msa_yaml = WISPS.out.msa_yaml.map{['yaml': it[1]]}
+    msa_csv  = WISPS.out.msa_csv.map{['csv': it[1]]}
+    colabfold_predictions = WISPS.out.colabfold_scores
+                                .join(WISPS.out.colabfold_pdb)
+                                .map { ['score': params.iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).iptm : null,
+                                        'pdb': it[2],
+                                        'confidence': it[1]] }
+                                .filter{params.iptm_threshold == 0 || it.score >= params.iptm_threshold}
+
+    boltz_predictions = WISPS.out.boltz_pae
+                            .join(WISPS.out.boltz_cif)
+                            .join(WISPS.out.boltz_confidence)
+                            .map { ['confidence': it[3], 
+                                    'cif': it[2], 
+                                    'pae': it[1], 
+                                    'score': params.iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[3].text).iptm : null] }
+                            .filter{params.iptm_threshold == 0 || it.score >= params.iptm_threshold}
+
+    af3_predictions = WISPS.out.alphafold3_confidence
+                        .join(WISPS.out.alphafold3_cif)
+                        .map { ['confidence': it[1], 
+                              'cif': it[2], 
+                              'score': params.iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).iptm : null] }
+                        .filter{params.iptm_threshold == 0 || it.score >= params.iptm_threshold}
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -143,6 +161,7 @@ workflow {
     msa_json = WF_WISPS.out.msa_json.ifEmpty([])
     msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
     msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
+    
 }
 
 output {
@@ -175,16 +194,18 @@ output {
         path "ipsae/"
     }
     msa_a3m  {
-        path "mmseqs/"
+        path "mmseqs/a3m/"
     }
     msa_json  {
-        path "mmseqs/"
+        path "mmseqs/json/"
     }
     msa_yaml {
-        path 'mmseqs/'
+        path "mmseqs/yaml/"
+        enabled params.save_mmseqs_out
     }
-    msa_csv   {
-        path 'mmseqs/'
+    msa_csv  {
+        path "mmseqs/csv/"
+        enabled params.save_mmseqs_out
     }
 
 }
