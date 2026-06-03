@@ -157,7 +157,7 @@ workflow {
     multiqc_report = WF_WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
     //collated_versions = WF_WISPS.out.collated_versions
     ipsae_report = WF_WISPS.out.ipsae_report
-    msa_a3m  = WF_WISPS.out.msa_a3m.map{it[1]}
+    msa_a3m  = WF_WISPS.out.msa_a3m.ifEmpty([])
     msa_json = WF_WISPS.out.msa_json.ifEmpty([])
     msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
     msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
