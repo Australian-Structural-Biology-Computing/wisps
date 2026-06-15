@@ -79,8 +79,7 @@ workflow WISPS {
     interaction_neighbours
     pool
     pool_size
-    iptm_threshold
-
+    
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
@@ -783,28 +782,13 @@ workflow WISPS {
     msa_json = MMSEQS_COLABFOLDSEARCH.out.json
     msa_yaml = MMSEQS_COLABFOLDSEARCH.out.yaml
     msa_csv  = MMSEQS_COLABFOLDSEARCH.out.msa_csv
-
-    colabfold_predictions = ch_colabfold_scores
-                                .join(ch_colabfold_pdb)
-                                .map { ['score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).iptm : null,
-                                        'pdb': it[2],
-                                        'confidence': it[1]] }
-                                .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
-
-    boltz_predictions = ch_boltz_pae
-                            .join(ch_boltz_cif)
-                            .join(ch_boltz_confidence)
-                            .map { ['confidence': it[3], 
-                                    'cif': it[2], 
-                                    'pae': it[1], 
-                                    'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[3].text).iptm : null] }
-                            .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
-
-    af3_predictions = ch_alphafold3_confidence
-                        .join(ch_alphafold3_cif)
-                        .map { ['confidence': it[1], 
-                              'cif': it[2], 
-                              'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).iptm : null] }
-                        .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+    colabfold_scores = ch_colabfold_scores
+    colabfold_pdb = ch_colabfold_pdb
+    boltz_pae = ch_boltz_pae
+    boltz_cif = ch_boltz_cif
+    boltz_confidence = ch_boltz_confidence
+    alphafold3_confidence = ch_alphafold3_confidence
+    alphafold3_cif = ch_alphafold3_cif
+    
 }
 

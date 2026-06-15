@@ -94,6 +94,12 @@
                     "description": "Use spire DB for search",
                     "fa_icon": "fas fa-folder-open"
                 },
+                "save_mmseqs_out": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Save the output of mmseqs in the output directory. (disable if you want to reduce storage foot print)",
+                    "fa_icon": "fas fa-microchip"
+                },
                 "email": {
                     "type": "string",
                     "description": "Email address for completion summary.",
