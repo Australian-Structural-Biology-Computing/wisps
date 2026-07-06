@@ -79,7 +79,7 @@ workflow WF_WISPS {
             params.pool,
             params.pool_size
         )
-        ch_versions = ch_versions.mix(WISPS.out.versions)
+    ch_versions = ch_versions.mix(WISPS.out.versions)
 
     emit:
     multiqc_report = WISPS.out.multiqc_report
@@ -161,7 +161,7 @@ workflow {
     msa_json = WF_WISPS.out.msa_json.ifEmpty([])
     msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
     msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
-    
+
 }
 
 output {
@@ -211,6 +211,7 @@ output {
     }
 
 }
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

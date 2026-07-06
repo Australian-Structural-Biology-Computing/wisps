@@ -83,7 +83,7 @@ workflow WISPS {
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
-
+    
     use_interaction_pools = (pool instanceof Boolean) ? pool : pool.toString().toBoolean()
     interaction_mode = mode.split(",").collect { pair ->
         pair.split('-').sort().join('-')
@@ -223,12 +223,12 @@ workflow WISPS {
         ch_interaction_raw = ch_samplesheet
             .map { it[1] }
             .filter { it.extension == "fasta" || it.extension == "fa" }
-            .ifEmpty { error("Manual mode requires at least one FASTA file in the samplesheet sequence column.") }
+            .ifEmpty { error("Manual mode requires at least one FASTA file in the samplesheet sequence column-Z.") }
             .collectFile(name: "manual_interactions.fasta", newLine: false) { fasta_file ->
                 ["manual_interactions.fasta", fasta_file.text.trim() + "\n"]
             }
     }
-
+    
     ch_interaction_has_protein = ch_interaction_raw.flatMap { interactions_fasta ->
         def out = []
         def lines = interactions_fasta.readLines().findAll { it?.trim() }
@@ -581,6 +581,7 @@ workflow WISPS {
         .map { [it[0].id, it[0]] }
         .groupTuple()
         .map { inputId, metas -> [inputId, metas] }
+    
 
     ch_long = Channel.empty()
     if ('boltz' in active_modes)
@@ -589,8 +590,9 @@ workflow WISPS {
         ch_long = ch_long.mix(ch_ipsae_out.colabfold.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'colabfold', e[1]] } })
     if ('alphafold3' in active_modes)
         ch_long = ch_long.mix(ch_ipsae_out.alphafold3.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'alphafold3', e[1]] } })
+ 
     ch_long = ch_long
-        .join(ch_report_meta_grouped_by_input_id, remainder: true)
+        .join(ch_report_meta_grouped_by_input_id)
         .flatMap { inputId, pairId, model, score, metaList ->
             def metas = (metaList instanceof List && !metaList.isEmpty())
                 ? metaList
@@ -600,7 +602,8 @@ workflow WISPS {
                 [reportId, pairId, model, score]
             }
         }
-
+    
+ 
     // 2) Pivot per pair: [pair_id, sampleModelScoreMap]
     ch_pair_wide = ch_long
         .map { sampleId, pairId, model, score -> [pairId, [sampleId, model, score]] }
@@ -612,7 +615,9 @@ workflow WISPS {
             }
             [pairId, bySample]
         }
-
+    
+   
+    //ch_pair_wide.view()
     // 3) Create one CSV per pair with model-only headers
     ch_interaction_in.map { it[0].report_id }.unique().toSortedList().map { [sample_ids: it] }
         .combine(ch_pair_wide.collect(flat: false).map { [pairs: it] })
