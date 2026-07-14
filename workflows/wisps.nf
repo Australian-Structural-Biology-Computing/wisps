@@ -590,9 +590,9 @@ workflow WISPS {
         ch_long = ch_long.mix(ch_ipsae_out.colabfold.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'colabfold', e[1]] } })
     if ('alphafold3' in active_modes)
         ch_long = ch_long.mix(ch_ipsae_out.alphafold3.flatMap { id, entries -> entries.collect { e -> [id, e[0], 'alphafold3', e[1]] } })
- 
+    
     ch_long = ch_long
-        .join(ch_report_meta_grouped_by_input_id)
+        .join(ch_report_meta_grouped_by_input_id, remainder: false)
         .flatMap { inputId, pairId, model, score, metaList ->
             def metas = (metaList instanceof List && !metaList.isEmpty())
                 ? metaList
