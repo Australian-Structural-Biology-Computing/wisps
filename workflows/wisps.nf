@@ -616,8 +616,6 @@ workflow WISPS {
             [pairId, bySample]
         }
     
-   
-    //ch_pair_wide.view()
     // 3) Create one CSV per pair with model-only headers
     ch_interaction_in.map { it[0].report_id }.unique().toSortedList().map { [sample_ids: it] }
         .combine(ch_pair_wide.collect(flat: false).map { [pairs: it] })
