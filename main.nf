@@ -77,7 +77,9 @@ workflow WF_WISPS {
             params.colabfold_batch_size,
             params.interaction_neighbours,
             params.pool,
-            params.pool_size
+            params.pool_size,
+            params.iptm_threshold,
+            params.compress_predictions
         )
     ch_versions = ch_versions.mix(WISPS.out.versions)
 
@@ -90,29 +92,10 @@ workflow WF_WISPS {
     msa_json = WISPS.out.msa_json.map{['json': it[1]]}
     msa_yaml = WISPS.out.msa_yaml.map{['yaml': it[1]]}
     msa_csv  = WISPS.out.msa_csv.map{['csv': it[1]]}
-    
-    colabfold_predictions = WISPS.out.colabfold_scores
-                                .join(WISPS.out.colabfold_pdb)
-                                .map { ['score': params.iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).with { (iptm && iptm != 0) ? iptm : ptm } : null,
-                                        'pdb': it[2],
-                                        'confidence': it[1]] }
-                                .filter{params.iptm_threshold == 0 || it.score >= params.iptm_threshold}
-
-    boltz_predictions = WISPS.out.boltz_pae
-                            .join(WISPS.out.boltz_cif)
-                            .join(WISPS.out.boltz_confidence)
-                            .map { ['confidence': it[3], 
-                                    'cif': it[2], 
-                                    'pae': it[1], 
-                                    'score': params.iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[3].text).with { (iptm && iptm != 0) ? iptm : ptm } : null] }
-                            .filter{params.iptm_threshold == 0 || it.score >= params.iptm_threshold}
-
-    af3_predictions = WISPS.out.alphafold3_confidence
-                        .join(WISPS.out.alphafold3_cif)
-                        .map { ['confidence': it[1], 
-                              'cif': it[2], 
-                              'score': params.iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).with { (iptm && iptm != 0) ? iptm : ptm } : null] }
-                        .filter{params.iptm_threshold == 0 || it.score >= params.iptm_threshold}
+    colabfold_predictions = WISPS.out.colabfold_predictions
+    boltz_predictions = WISPS.out.boltz_predictions
+    af3_predictions = WISPS.out.af3_predictions
+    compressed_data = WISPS.out.compressed_data
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,6 +137,7 @@ workflow {
     colabfold_predictions = WF_WISPS.out.colabfold_predictions
     boltz_predictions = WF_WISPS.out.boltz_predictions
     af3_predictions = WF_WISPS.out.af3_predictions
+    compressed_data  = WF_WISPS.out.compressed_data
     multiqc_report = WF_WISPS.out.multiqc_report // channel: /path/to/multiqc_report.html
     //collated_versions = WF_WISPS.out.collated_versions
     ipsae_report = WF_WISPS.out.ipsae_report
@@ -161,7 +145,7 @@ workflow {
     msa_json = WF_WISPS.out.msa_json.ifEmpty([])
     msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
     msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
-
+    
 }
 
 output {
@@ -171,6 +155,7 @@ output {
                 sample.confidence >> "colabfold_predictions/confidence/"        
             }
         }
+        enabled !params.compress_predictions
     }
     boltz_predictions {
         path { sample -> {
@@ -179,6 +164,7 @@ output {
                 sample.confidence >> "boltz_predictions/confidence/${sample.confidence.name}"        
             }
         }
+        enabled !params.compress_predictions
     }
     af3_predictions {
         path { sample -> {
@@ -186,6 +172,7 @@ output {
                 sample.confidence >> "alphafold3_predictions/confidence/${sample.confidence.name}"        
             }
         }
+        enabled !params.compress_predictions
     }
     multiqc_report {
         path 'multiqc_report.html'
@@ -208,6 +195,10 @@ output {
     msa_csv  {
         path "mmseqs/csv/"
         enabled params.save_mmseqs_out
+    }
+    compressed_data {
+        path "compressed_predictions/"
+        enabled params.compress_predictions
     }
 
 }

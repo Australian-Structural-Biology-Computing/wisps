@@ -100,6 +100,12 @@
                     "description": "Save the output of mmseqs in the output directory. (disable if you want to reduce storage foot print)",
                     "fa_icon": "fas fa-microchip"
                 },
+                "compress_predictions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Compress the prediction outputs in the output directory. (To reduce storage footprint)",
+                    "fa_icon": "fas fa-microchip"
+                },
                 "email": {
                     "type": "string",
                     "description": "Email address for completion summary.",

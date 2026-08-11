@@ -18,6 +18,7 @@
 // MODULE: Installed directly from nf-core/modules
 //
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
+include { TAR } from '../modules/nf-core/tar/main'
 include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_BOLTZ } from '../modules/local/collect_confidence'
 include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_COLABFOLD } from '../modules/local/collect_confidence'
 include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_AF3 } from '../modules/local/collect_confidence'
@@ -37,8 +38,8 @@ include { RUN_ALPHAFOLD3 } from '../modules/local/run_alphafold3'
 include { COLABFOLD_BATCH } from '../modules/local/colabfold_batch'
 include { BOLTZ_FASTA } from '../modules/local/data_convertor/boltz_fasta'
 include { IPSAE } from '../modules/local/ipsae'
-include {CREATE_INTERACTIONS}  from '../modules/local/data_convertor/create_interactions'
-include {CREATE_INTERACTION_POOLS} from '../modules/local/data_convertor/create_interaction_pools'
+include { CREATE_INTERACTIONS }  from '../modules/local/data_convertor/create_interactions'
+include { CREATE_INTERACTION_POOLS } from '../modules/local/data_convertor/create_interaction_pools'
 include { MMSEQS_COLABFOLDSEARCH } from '../modules/local/mmseqs_colabfoldsearch'
 
 //
@@ -79,6 +80,8 @@ workflow WISPS {
     interaction_neighbours
     pool
     pool_size
+    iptm_threshold
+    compress_predictions
     
     main:
     ch_multiqc_files = Channel.empty()
@@ -296,7 +299,6 @@ workflow WISPS {
     .map{[it.baseName, it]}
     .set{ch_af3_json}
 
-
     // Prepare interactions for boltz directly from MMSEQS outputs
     ch_boltz_in = Channel.empty()
     if ("boltz" in tools.split(",")){
@@ -387,7 +389,6 @@ workflow WISPS {
     .map{[["id": it.baseName.split("_unrelaxed_")[0], "model": "colabfold"], it]}
     .set{ch_colabfold_pdb}
 
-
     af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
@@ -443,6 +444,53 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_summary_confidences")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_summary_confidences}
+
+
+    
+    ch_colabfold_predictions = ch_colabfold_scores
+                                .join(ch_colabfold_pdb)
+                                .map { ['score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).with { (iptm && iptm != 0) ? iptm : ptm } : null,
+                                        'pdb': it[2],
+                                        'confidence': it[1]] }
+                                .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+    ch_boltz_predictions = ch_boltz_pae
+                            .join(ch_boltz_cif)
+                            .join(ch_boltz_confidence)
+                            .map { ['confidence': it[3], 
+                                    'cif': it[2], 
+                                    'pae': it[1], 
+                                    'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[3].text).with { (iptm && iptm != 0) ? iptm : ptm } : null] }
+                            .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+    ch_af3_predictions = ch_alphafold3_confidence
+                        .join(ch_alphafold3_cif)
+                        .map { ['confidence': it[1], 
+                              'cif': it[2], 
+                              'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).with { (iptm && iptm != 0) ? iptm : ptm } : null] }
+                        .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+
+    ch_compression_in = Channel.empty()
+
+    if (compress_predictions){
+        ch_compression_in = ch_compression_in.mix(ch_boltz_predictions.map{it.cif}.collect().map{[["id": "boltz-cif"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_boltz_predictions.map{it.pae}.collect().map{[["id": "boltz-pae"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_boltz_predictions.map{it.confidence}.collect().map{[["id": "boltz-confidence"], it]})
+        
+        ch_compression_in = ch_compression_in.mix(ch_af3_predictions.map{it.cif}.collect().map{[["id": "af3-cif"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_af3_predictions.map{it.confidence}.collect().map{[["id": "af3-confidence"], it]})
+        
+        ch_compression_in = ch_compression_in.mix(ch_colabfold_predictions.map{it.pdb}.collect().map{[["id": "colabfold-pdb"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_colabfold_predictions.map{it.confidence}.collect().map{[["id": "colabfold-confidence"], it]})
+        
+    }
+
+    TAR(
+        ch_compression_in,
+        channel.value( '.gz' )
+    )
+    //ch_versions = ch_versions.mix(TAR.out.versions_tar)
 
 
     ipsae_batch = 0
@@ -785,13 +833,9 @@ workflow WISPS {
     msa_json = MMSEQS_COLABFOLDSEARCH.out.json
     msa_yaml = MMSEQS_COLABFOLDSEARCH.out.yaml
     msa_csv  = MMSEQS_COLABFOLDSEARCH.out.msa_csv
-    colabfold_scores = ch_colabfold_scores
-    colabfold_pdb = ch_colabfold_pdb
-    boltz_pae = ch_boltz_pae
-    boltz_cif = ch_boltz_cif
-    boltz_confidence = ch_boltz_confidence
-    alphafold3_confidence = ch_alphafold3_confidence
-    alphafold3_cif = ch_alphafold3_cif
-    
+    compressed_data = TAR.out.archive
+    colabfold_predictions = ch_colabfold_predictions
+    boltz_predictions = ch_boltz_predictions
+    af3_predictions = ch_af3_predictions
 }
 
