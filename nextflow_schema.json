@@ -171,8 +171,16 @@
                 },
                 "spire_db": {
                     "type": "string",
-                    "description": "Link to the ColabFold database",
+                    "format": "directory-path",
+                    "exists": true,
+                    "description": "Path to the SPIRE database directory (required when --use_spire_db is enabled)",
                     "fa_icon": "fas fa-folder-open"
+                },
+                "spire_db_prefix": {
+                    "type": "string",
+                    "description": "SPIRE database prefix relative to the staged database directory",
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "spire_ctg10_2401_db"
                 },
                 "colabfold_alphafold2_params": {
                     "type": "string",
@@ -390,6 +398,19 @@
         },
         {
             "$ref": "#/$defs/generic_options"
+        },
+        {
+            "if": {
+                "properties": {
+                    "use_spire_db": {
+                        "const": true
+                    }
+                },
+                "required": ["use_spire_db"]
+            },
+            "then": {
+                "required": ["spire_db"]
+            }
         }
     ]
 }

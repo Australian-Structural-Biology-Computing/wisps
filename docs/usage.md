@@ -112,7 +112,7 @@ Reference: ColabFold input format examples in the official repository README: <h
   Run mmseqs on GPU.
 
 - `--use_spire_db` `[boolean]`
-  Use Spire database.
+  Use the SPIRE database. Requires `--spire_db`.
 
 ---
 
@@ -134,7 +134,11 @@ Reference: ColabFold input format examples in the official repository README: <h
   Default: `colabfold_envdb/colabfold_envdb_202108_db`
 
 - `--spire_db` `[string]`
-  Spire database.
+  Path to the SPIRE database directory. Required when `--use_spire_db` is enabled.
+
+- `--spire_db_prefix` `[string]`
+  SPIRE database prefix relative to the database directory.
+  **Default:** `spire_ctg10_2401_db`
 
 - `--colabfold_alphafold2_params` `[string]`
   AlphaFold2 parameters for ColabFold.

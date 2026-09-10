@@ -51,6 +51,9 @@ workflow WF_WISPS {
     ch_alphafold3_params = ("alphafold3" in tool_set)
         ? Channel.fromPath(params.alphafold3_params, checkIfExists: true).first()
         : Channel.empty()
+    if (params.use_spire_db && !params.spire_db) {
+        error("--spire_db must be provided when --use_spire_db is enabled")
+    }
     ch_spire_db = params.use_spire_db
         ? Channel.fromPath(params.spire_db, checkIfExists: true).first()
         : Channel.value([])
