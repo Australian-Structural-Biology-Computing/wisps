@@ -67,6 +67,7 @@ workflow WISPS {
     ch_mols
     ch_colabfold_envdb
     ch_colabfold_uniref30
+    ch_spire_db
     ch_colabfold_params
     num_recycles
     ch_alphafold3_params
@@ -338,7 +339,8 @@ workflow WISPS {
     MMSEQS_COLABFOLDSEARCH (
         ch_interaction_raw.map{[["id": "all_run"], it]},
         ch_colabfold_envdb,
-        ch_colabfold_uniref30
+        ch_colabfold_uniref30,
+        ch_spire_db
     )
     ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
 

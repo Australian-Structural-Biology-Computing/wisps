@@ -19,6 +19,7 @@ workflow MSA {
     ch_versions = Channel.empty()
     ch_a3m      = Channel.empty()
     ch_json      = Channel.empty()
+    ch_spire_db = Channel.value([])
 
     ch_samplesheet
     .branch {
@@ -70,7 +71,8 @@ workflow MSA {
     MMSEQS_COLABFOLDSEARCH (
         ch_input_seqs,
         ch_colabfold_envdb,
-        ch_colabfold_uniref30
+        ch_colabfold_uniref30,
+        ch_spire_db
     )
     ch_versions = ch_versions.mix(MMSEQS_COLABFOLDSEARCH.out.versions)
 

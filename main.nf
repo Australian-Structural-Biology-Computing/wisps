@@ -51,6 +51,9 @@ workflow WF_WISPS {
     ch_alphafold3_params = ("alphafold3" in tool_set)
         ? Channel.fromPath(params.alphafold3_params, checkIfExists: true).first()
         : Channel.empty()
+    ch_spire_db = params.use_spire_db
+        ? Channel.fromPath(params.spire_db, checkIfExists: true).first()
+        : Channel.value([])
     //
     // WORKFLOW: Run pipeline
     //
@@ -65,6 +68,7 @@ workflow WF_WISPS {
             ch_boltz2_mols,
             Channel.fromPath(params.colabfold_envdb, checkIfExists: true).first(),
             Channel.fromPath(params.colabfold_uniref30, checkIfExists: true).first(),
+            ch_spire_db,
             ch_colabfold_alphafold2_params,
             params.colabfold_num_recycles,
             ch_alphafold3_params,
