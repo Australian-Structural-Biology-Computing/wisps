@@ -18,6 +18,7 @@
 // MODULE: Installed directly from nf-core/modules
 //
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
+include { TAR } from '../modules/nf-core/tar/main'
 include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_BOLTZ } from '../modules/local/collect_confidence'
 include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_COLABFOLD } from '../modules/local/collect_confidence'
 include { COLLECT_CONFIDENCE as COLLECT_CONFIDENCE_AF3 } from '../modules/local/collect_confidence'
@@ -37,8 +38,8 @@ include { RUN_ALPHAFOLD3 } from '../modules/local/run_alphafold3'
 include { COLABFOLD_BATCH } from '../modules/local/colabfold_batch'
 include { BOLTZ_FASTA } from '../modules/local/data_convertor/boltz_fasta'
 include { IPSAE } from '../modules/local/ipsae'
-include {CREATE_INTERACTIONS}  from '../modules/local/data_convertor/create_interactions'
-include {CREATE_INTERACTION_POOLS} from '../modules/local/data_convertor/create_interaction_pools'
+include { CREATE_INTERACTIONS }  from '../modules/local/data_convertor/create_interactions'
+include { CREATE_INTERACTION_POOLS } from '../modules/local/data_convertor/create_interaction_pools'
 include { MMSEQS_COLABFOLDSEARCH } from '../modules/local/mmseqs_colabfoldsearch'
 
 //
@@ -57,7 +58,8 @@ include { getYamlSequences    } from '../subworkflows/local/msa'
 workflow WISPS {
 
     take:
-    ch_samplesheet
+    ch_samplesheet_in
+    input_fasta
     mode
     ch_versions
     ch_boltz2_aff
@@ -79,10 +81,42 @@ workflow WISPS {
     interaction_neighbours
     pool
     pool_size
+    iptm_threshold
+    compress_predictions
     
     main:
     ch_multiqc_files = Channel.empty()
     ch_confidence_scores = Channel.empty()
+    ch_confidence_scores_all = Channel.empty()
+    cols = "id1,id2"
+    
+    if (input_fasta){
+        log.warn("Matching sequences in `input_fasta` to sample sheet entries based on the sequence header = `sequence_id` column in the sample sheet.")
+        validateFasta(input_fasta)
+        Channel.fromPath(input_fasta, checkIfExists: true)
+            .splitFasta( record: [header: true, sequence: true] )
+            .collectFile { item ->
+                [ "${cleanHeader(item["header"])}.fa", ">" + cleanHeader(item["header"]) + '\n' +item["sequence"] ]
+            }
+            .map {
+                file -> [file.baseName, file]
+            }.set{ch_fasta_files}
+
+        ch_samplesheet_in
+        .map{[it[2], it[0]]}
+        .join(ch_fasta_files, failOnMismatch: true, failOnDuplicate: true)
+        .map{[it[1], it[2]]}
+        .set{ch_samplesheet}
+    }else{
+        ch_samplesheet = 
+        ch_samplesheet_in
+        .map{
+            if (! it[1]){
+                error("--input_fasta must be used or sample sheet should contains the `sequence` file!")
+            }
+            [it[0], it[1]]
+        }
+    }
     
     use_interaction_pools = (pool instanceof Boolean) ? pool : pool.toString().toBoolean()
     interaction_mode = mode.split(",").collect { pair ->
@@ -251,6 +285,7 @@ workflow WISPS {
     }
 
     if ("manual" in interaction_mode) {
+        cols = "id"
         ch_interaction_info = ch_interaction_has_protein
             .map { interaction_id, _ -> [interaction_id, "", "", interaction_id, "", ""] }
     }
@@ -295,7 +330,6 @@ workflow WISPS {
     .flatten()
     .map{[it.baseName, it]}
     .set{ch_af3_json}
-
 
     // Prepare interactions for boltz directly from MMSEQS outputs
     ch_boltz_in = Channel.empty()
@@ -387,7 +421,6 @@ workflow WISPS {
     .map{[["id": it.baseName.split("_unrelaxed_")[0], "model": "colabfold"], it]}
     .set{ch_colabfold_pdb}
 
-
     af3_batch = 0
     ch_alphafold3_interaction_in = Channel.empty()
     if ("alphafold3" in tools.split(",")){
@@ -443,6 +476,53 @@ workflow WISPS {
     .flatten()
     .map{[["id": it.baseName.split("_summary_confidences")[0], "model": "alphafold3"], it]}
     .set{ch_alphafold3_summary_confidences}
+
+
+    
+    ch_colabfold_predictions = ch_colabfold_scores
+                                .join(ch_colabfold_pdb)
+                                .map { ['score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).with { (iptm && iptm != 0) ? iptm : ptm } : null,
+                                        'pdb': it[2],
+                                        'confidence': it[1]] }
+                                .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+    ch_boltz_predictions = ch_boltz_pae
+                            .join(ch_boltz_cif)
+                            .join(ch_boltz_confidence)
+                            .map { ['confidence': it[3], 
+                                    'cif': it[2], 
+                                    'pae': it[1], 
+                                    'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[3].text).with { (iptm && iptm != 0) ? iptm : ptm } : null] }
+                            .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+    ch_af3_predictions = ch_alphafold3_confidence
+                        .join(ch_alphafold3_cif)
+                        .map { ['confidence': it[1], 
+                              'cif': it[2], 
+                              'score': iptm_threshold > 0 ? new groovy.json.JsonSlurper().parseText(it[1].text).with { (iptm && iptm != 0) ? iptm : ptm } : null] }
+                        .filter{iptm_threshold == 0 || it.score >= iptm_threshold}
+
+
+    ch_compression_in = Channel.empty()
+
+    if (compress_predictions){
+        ch_compression_in = ch_compression_in.mix(ch_boltz_predictions.map{it.cif}.collect().map{[["id": "boltz-cif"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_boltz_predictions.map{it.pae}.collect().map{[["id": "boltz-pae"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_boltz_predictions.map{it.confidence}.collect().map{[["id": "boltz-confidence"], it]})
+        
+        ch_compression_in = ch_compression_in.mix(ch_af3_predictions.map{it.cif}.collect().map{[["id": "af3-cif"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_af3_predictions.map{it.confidence}.collect().map{[["id": "af3-confidence"], it]})
+        
+        ch_compression_in = ch_compression_in.mix(ch_colabfold_predictions.map{it.pdb}.collect().map{[["id": "colabfold-pdb"], it]})
+        ch_compression_in = ch_compression_in.mix(ch_colabfold_predictions.map{it.confidence}.collect().map{[["id": "colabfold-confidence"], it]})
+        
+    }
+
+    TAR(
+        ch_compression_in,
+        channel.value( '.gz' )
+    )
+    //ch_versions = ch_versions.mix(TAR.out.versions_tar)
 
 
     ipsae_batch = 0
@@ -715,24 +795,20 @@ workflow WISPS {
         ch_boltz_confidence_json
     )
     ch_versions = ch_versions.mix(COLLECT_CONFIDENCE_BOLTZ.out.versions)
-    ch_confidence_scores_all = COLLECT_CONFIDENCE_BOLTZ.out.confidence
-
+    ch_ipsae_scores_max.splitCsv(header:true).map{[it.Sample, it]}.set{ch_ipsae_vals}
+    
     COLLECT_CONFIDENCE_COLABFOLD(
         ch_confidence_meta.map{[["id": "all-colabfold", "model": "colabfold"], it]},
         ch_colabfold_confidence_json
     )
     ch_versions = ch_versions.mix(COLLECT_CONFIDENCE_COLABFOLD.out.versions)
-    ch_confidence_scores_all = ch_confidence_scores_all.mix(COLLECT_CONFIDENCE_COLABFOLD.out.confidence)
-
+    
     COLLECT_CONFIDENCE_AF3(
         ch_confidence_meta.map{[["id": "all-alphafold3", "model": "alphafold3"], it]},
         ch_alphafold3_confidence_json
     )
     ch_versions = ch_versions.mix(COLLECT_CONFIDENCE_AF3.out.versions)
-    ch_confidence_scores_all = ch_confidence_scores_all.mix(COLLECT_CONFIDENCE_AF3.out.confidence)
-
-
-
+    
     //
     // Collate and save software versions
     //
@@ -752,12 +828,60 @@ workflow WISPS {
     ch_methods_description   = Channel.value(methodsDescriptionText(ch_multiqc_methods_description))
 
     ch_multiqc_files = Channel.empty()
+    b_cols = cols + ",model_input_id,iptm,ptm,max_cross_group_pair_chains_iptm,confidence_score,ligand_iptm,protein_iptm,complex_plddt,complex_iplddt,complex_pde,complex_ipde,chains_ptm_0,chains_ptm_1,ipsae_score"
+    
+    ch_multiqc_files = ch_multiqc_files.mix(
+        COLLECT_CONFIDENCE_BOLTZ.out.confidence
+        .splitCsv(header:true)
+        .map{[it[1].id, it[1]]}
+        .join(ch_ipsae_vals)
+        .map{
+            it[1].ipsae_score = it[2].boltz
+            if (!interaction_mode.contains("manual")){
+                it[1].id1 = it[1].id.split("-")[0]; 
+                it[1].id2 = it[1].id.split("-")[1];
+            }
+            b_cols.split(",").collect { x -> it[1][x] }.join(",")
+        }
+        .collectFile(name: 'boltz_confidence.csv', seed: b_cols, newLine: true)
+    )
+    
+    c_cols = cols + ",model_input_id,ptm,iptm,max_cross_group_pairwise_iptm,plddt,ipsae_score"
+    ch_multiqc_files = ch_multiqc_files.mix(
+        COLLECT_CONFIDENCE_COLABFOLD.out.confidence
+        .splitCsv(header:true)
+        .map{[it[1].id, it[1]]}
+        .join(ch_ipsae_vals)
+        .map{
+            it[1].ipsae_score = it[2].colabfold
+            if (!interaction_mode.contains("manual")){
+                it[1].id1 = it[1].id.split("-")[0]; 
+                it[1].id2 = it[1].id.split("-")[1];
+            }
+            c_cols.split(",").collect { x -> it[1][x] }.join(",")
+        }
+        .collectFile(name: 'colabfold_confidence.csv', seed: c_cols, newLine: true)
+    )
+
+    a_cols = cols + ",model_input_id,left_source_id,right_source_id,ptm,iptm,int_chain_map,str_chain_map,max_cross_group_chain_pair_iptm,fraction_disordered,has_clash,ranking_score,ipsae_score"
+    ch_multiqc_files = ch_multiqc_files.mix(
+        COLLECT_CONFIDENCE_AF3.out.confidence
+        .splitCsv(header:true)
+        .map{[it[1].id, it[1]]}
+        .join(ch_ipsae_vals)
+        .map{
+            it[1].ipsae_score = it[2].af3
+            if (!interaction_mode.contains("manual")){
+                it[1].id1 = it[1].id.split("-")[0]; 
+                it[1].id2 = it[1].id.split("-")[1];
+            }
+            a_cols.split(",").collect { x -> it[1][x] }.join(",")
+        }
+        .collectFile(name: 'alphafold3_confidence.csv', seed: a_cols, newLine: true)
+    )
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
-    ch_multiqc_files = ch_multiqc_files
-                        .mix(ch_confidence_scores_all.map{it[1]})
-                        .mix(ch_ipsae_scores)
     MULTIQC (
         ch_multiqc_files.collect(sort: true),
         ch_multiqc_config.collect()
@@ -785,13 +909,33 @@ workflow WISPS {
     msa_json = MMSEQS_COLABFOLDSEARCH.out.json
     msa_yaml = MMSEQS_COLABFOLDSEARCH.out.yaml
     msa_csv  = MMSEQS_COLABFOLDSEARCH.out.msa_csv
-    colabfold_scores = ch_colabfold_scores
-    colabfold_pdb = ch_colabfold_pdb
-    boltz_pae = ch_boltz_pae
-    boltz_cif = ch_boltz_cif
-    boltz_confidence = ch_boltz_confidence
-    alphafold3_confidence = ch_alphafold3_confidence
-    alphafold3_cif = ch_alphafold3_cif
-    
+    compressed_data = TAR.out.archive
+    colabfold_predictions = ch_colabfold_predictions
+    boltz_predictions = ch_boltz_predictions
+    af3_predictions = ch_af3_predictions
 }
 
+def validateFasta(fasta) {
+    // extract headers
+    def headers = fasta.findAll { it -> it.startsWith('>') }
+    // if headers are not unique, throw an error
+    if (headers.size() != headers.unique().size()) {
+        throw new Exception("Invalid FASTA file. The headers are not unique.")
+    }
+    // check headers that are malformed
+    headers.each { header ->
+        if (header =~ /[ \t;,\/]/) {
+            // warn user that the header contains special characters
+            log.warn "The header ${header} contains special characters. They have been automatically removed."
+        }
+    }
+}
+
+
+def cleanHeader(header) {
+    return header
+        .replaceAll(" ", "_")
+        .replaceAll("/","_")
+        .replaceAll(",", "")
+        .replaceAll(";","")
+}

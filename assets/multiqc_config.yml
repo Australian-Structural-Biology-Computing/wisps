@@ -55,11 +55,11 @@ custom_data:
 
 sp:
   colabfold_confidence:
-    fn: "*colabfold_confidence_scores_full.csv"
+    fn: "*colabfold_confidence.csv"
   boltz_confidence:
-    fn: "*boltz_confidence_scores_full.csv"
+    fn: "*boltz_confidence.csv"
   alphafold3_confidence:
-    fn: "*alphafold3_confidence_scores_full.csv"
+    fn: "*alphafold3_confidence.csv"
   ipsae_scores:
     fn: "*ipsae_scores.csv"
 

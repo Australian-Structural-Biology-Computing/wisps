@@ -13,10 +13,10 @@ You will need to create a samplesheet with information about the samples you wou
 An example of the sample sheet used for the pipeline is shown below:
 
 ```csv title="samplesheet.csv"
-id,sequence,group,type
-S1,S1.fasta,A,protein
-S2,Sample2.fasta,B,protein
-S3,S3.fasta,A,rna
+id,sequence,group,type,seqeuence_id
+S1,S1.fasta,A,protein,S1
+S2,Sample2.fasta,B,protein,S2
+S3,S3.fasta,A,rna,S3
 ```
 
 | Column     | Description                                                                                                                                                                                                                                                                                                                                        |
@@ -25,6 +25,7 @@ S3,S3.fasta,A,rna
 | `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa"                                                                                                                                                                                                                                                     |
 | `type`     | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                             |
 | `group`    | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`. |
+| `sequence_id`    | It is an optional column and only needed if parameter `--input_fasta` is used. In this acse, this column should have the seqeuence id from the `--input_fasta` file and the seqeunce column will be ignored. This is used when the user have all input seqeunces in one fasta file rather than multiple files provided in the `seqeunce` columns. |
 
 A sequence file can contain multiple entities but if the entities are different types, they must adhere to the colabfold standard described below.
 
@@ -65,6 +66,11 @@ Reference: ColabFold input format examples in the official repository README: <h
 
 - `--input` `[string]`
   Path to CSV file describing samples.
+
+- `--input_fasta` `[string]`
+  Path to a FASTA file containing all input sequences, so the user does not need to provide individual sequences in multiple FASTA files within the sample sheet.
+  The IDs of the sequences in this file (using the cleaned sequence headers) should match the values in the sequence_id column of the sample sheet. When this parameter is provided, the sequence column in the sample sheet will be ignored.
+  The default value is null.
 
 - `--outdir` `[string]`
   Output directory for results (must be an absolute path in cloud environments).

@@ -1,5 +1,5 @@
 process IPSAE {
-    tag   "$meta.id"
+    tag   "${meta.id}-${meta.model}"
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"

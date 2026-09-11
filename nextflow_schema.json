@@ -23,6 +23,15 @@
                     "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re/wisps/usage#samplesheet-input).",
                     "fa_icon": "fas fa-file-csv"
                 },
+                "input_fasta": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.fa(sta)$",
+                    "description": "Path to a fasta file containing all seqeunces for the interactions.",
+                    "help_text": "If provided, the sample sheet should have a sequence_id column to match the header of each sequence in this file with the corresponding sequence in the sample sheet. The entries in this file and the sample sheet must match exactly, with no duplicates or mismatches. If provided, the sequence column in the sample sheet will be ignored.",
+                    "fa_icon": "fas fa-file-csv"
+                },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",
@@ -98,6 +107,12 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Save the output of mmseqs in the output directory. (disable if you want to reduce storage foot print)",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "compress_predictions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Compress the prediction outputs in the output directory. (To reduce storage footprint)",
                     "fa_icon": "fas fa-microchip"
                 },
                 "email": {
