@@ -57,6 +57,7 @@ workflow WF_WISPS {
 
         WISPS (
             ch_samplesheet,
+            params.input_fasta,
             params.mode,
             ch_versions,
             ch_boltz2_aff,

@@ -18,7 +18,12 @@
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^\\S+\\.(fa(sta)?|yaml|yml|json)$",
+                "default": null,
                 "errorMessage": "Fasta, yaml or json file must be provided, cannot contain spaces and must have extension '.fa', '.fasta', '.yaml', '.yml', or '.json'"
+            },
+            "sequence_id": {
+                "type": "string",
+                "default": null
             },
             "type": {
                 "type": "string",
@@ -33,6 +38,6 @@
                 "default": "all"
             }
         },
-        "required": ["id", "sequence"]
+        "required": ["id"]
     }
 }
