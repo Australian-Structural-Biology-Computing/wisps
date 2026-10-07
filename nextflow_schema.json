@@ -70,6 +70,12 @@
                     "description": "Local neighbourhood to model in all-by-all mode",
                     "fa_icon": "fas fa-microchip"
                 },
+                "multi_fasta_file": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If enabled, the fasta files provided in the sample sheet will be expeted to have multple fasta enteries, then the interactions will be considered for all fasta enteries in each file against the enteries in the other files. No issues if enabled and the files conatin single fasta entreies, it will jsut add extra light computaions. When enabled, sequences header in the same fasta file need to be unique.",
+                    "fa_icon": "fas fa-layer-group"
+                },
                 "pool": {
                     "type": "boolean",
                     "default": false,
