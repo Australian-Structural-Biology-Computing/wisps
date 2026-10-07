@@ -83,6 +83,7 @@ workflow WISPS {
     pool_size
     iptm_threshold
     compress_predictions
+    multi_fasta_file
     
     main:
     ch_multiqc_files = Channel.empty()
@@ -90,6 +91,7 @@ workflow WISPS {
     ch_confidence_scores_all = Channel.empty()
     cols = "id1,id2"
     
+
     if (input_fasta){
         log.warn("Matching sequences in `input_fasta` to sample sheet entries based on the sequence header = `sequence_id` column in the sample sheet.")
         validateFasta(input_fasta)
@@ -108,14 +110,35 @@ workflow WISPS {
         .map{[it[1], it[2]]}
         .set{ch_samplesheet}
     }else{
-        ch_samplesheet = 
-        ch_samplesheet_in
-        .map{
-            if (! it[1]){
-                error("--input_fasta must be used or sample sheet should contains the `sequence` file!")
+        if (multi_fasta_file){
+            ch_samplesheet_in
+            .flatMap { meta, fasta, seq ->
+                if (! fasta){
+                    error("--input_fasta must be used or sample sheet should contains the `sequence` file!")
+                }
+                fasta.splitFasta(record: [header: true, sequence: true]).collect { rec ->
+                    [["id": cleanHeader(rec["header"]), "group" : meta.group, "type" : meta.type], ">${rec.header}\n${rec.sequence}" ]
+                }
+            }.set{ch_fasta_recs}
+            
+            ch_fasta_recs
+            .map{["${it[0].id}.fa", it[0]]}
+            .join(
+                ch_fasta_recs
+                .collectFile (storeDir: "${outdir}/split_fasta") { meta, text -> [ "${meta.id}.fa", text ] }
+                .map{[it.name, it]}
+            )
+            .map{
+                [it[1], it[2]]
             }
-            [it[0], it[1]]
-        }
+            .set{ch_samplesheet}
+        }else{
+            ch_samplesheet_in
+            .map{
+                [it[0], it[1]]
+            }
+            .set{ch_samplesheet}
+        }        
     }
     
     use_interaction_pools = (pool instanceof Boolean) ? pool : pool.toString().toBoolean()

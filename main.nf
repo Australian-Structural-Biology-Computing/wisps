@@ -80,7 +80,8 @@ workflow WF_WISPS {
             params.pool,
             params.pool_size,
             params.iptm_threshold,
-            params.compress_predictions
+            params.compress_predictions,
+            params.multi_fasta_file
         )
     ch_versions = ch_versions.mix(WISPS.out.versions)
 
