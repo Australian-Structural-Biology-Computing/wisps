@@ -60,7 +60,7 @@
                 },
                 "colabfold_batch_size": {
                     "type": "integer",
-                    "default": 20,
+                    "default": 10,
                     "description": "Number of ColabFold samples to be processed in the analysis after multiple single alignment",
                     "fa_icon": "fas fa-microchip"
                 },
@@ -72,13 +72,11 @@
                 },
                 "multi_fasta_file": {
                     "type": "boolean",
-                    "default": false,
                     "description": "If enabled, the fasta files provided in the sample sheet will be expeted to have multple fasta enteries, then the interactions will be considered for all fasta enteries in each file against the enteries in the other files. No issues if enabled and the files conatin single fasta entreies, it will jsut add extra light computaions. When enabled, sequences header in the same fasta file need to be unique.",
                     "fa_icon": "fas fa-layer-group"
                 },
                 "pool": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Enable interaction pooling mode. When true, group pairs are read from --mode instead of standard interaction pairing.",
                     "fa_icon": "fas fa-layer-group"
                 },
@@ -90,14 +88,15 @@
                 },
                 "iptm_threshold": {
                     "type": "number",
-                    "default": 0,
+                    "default": 0.0,
                     "description": "Minimum iptm threshold to filter out predictions. Default is 0, and all predicitons will be ppublished in the output directory.",
                     "fa_icon": "fas fa-microchip"
                 },
                 "use_gpu": {
                     "type": "boolean",
                     "description": "Run on CPUs (default) or GPUs for the models",
-                    "fa_icon": "fas fa-microchip"
+                    "fa_icon": "fas fa-microchip",
+                    "default": true
                 },
                 "mmseqs_gpu": {
                     "type": "boolean",
@@ -111,13 +110,11 @@
                 },
                 "save_mmseqs_out": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Save the output of mmseqs in the output directory. (disable if you want to reduce storage foot print)",
                     "fa_icon": "fas fa-microchip"
                 },
                 "compress_predictions": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Compress the prediction outputs in the output directory. (To reduce storage footprint)",
                     "fa_icon": "fas fa-microchip"
                 },
@@ -150,12 +147,14 @@
                 "colabfold_uniref30": {
                     "type": "string",
                     "description": "Link to the UniRef30 database",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/colabfold_uniref30/"
                 },
                 "colabfold_envdb": {
                     "type": "string",
                     "description": "Link to the ColabFold database",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/colabfold_envdb/"
                 },
                 "colabfold_uniref30_prefix": {
                     "type": "string",
@@ -185,19 +184,23 @@
                 "colabfold_alphafold2_params": {
                     "type": "string",
                     "description": "Link to the Alphafold2 parameters for Colabfold",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "null/params/alphafold_params_2022-12-06"
                 },
                 "boltz2_aff": {
                     "type": "string",
-                    "description": "Path to boltz affinity file"
+                    "description": "Path to boltz affinity file",
+                    "default": "null/params/boltz2_aff.ckpt"
                 },
                 "boltz2_conf": {
                     "type": "string",
-                    "description": "Path to boltz-2 conf file"
+                    "description": "Path to boltz-2 conf file",
+                    "default": "null/params/boltz2_conf.ckpt"
                 },
                 "boltz2_mols": {
                     "type": "string",
-                    "description": "Path to boltz-2 mols"
+                    "description": "Path to boltz-2 mols",
+                    "default": "null/params/mols"
                 },
                 "alphafold3_params": {
                     "type": "string",
@@ -241,6 +244,17 @@
                     "fa_icon": "fas fa-recycle",
                     "errorMessage": ""
                 }
+            },
+            "if": {
+                "properties": {
+                    "use_spire_db": {
+                        "const": true
+                    }
+                },
+                "required": ["use_spire_db"]
+            },
+            "then": {
+                "required": ["spire_db"]
             }
         },
         "institutional_config_options": {
@@ -306,7 +320,7 @@
                 },
                 "publish_dir_mode": {
                     "type": "string",
-                    "default": "symlink",
+                    "default": "copy",
                     "description": "Method used to save pipeline results to output directory.",
                     "help_text": "The Nextflow `publishDir` option specifies which intermediate files should be saved to the output directory. This option tells the pipeline what method should be used to move these files. See [Nextflow docs](https://www.nextflow.io/docs/latest/process.html#publishdir) for details.",
                     "fa_icon": "fas fa-copy",
@@ -398,19 +412,6 @@
         },
         {
             "$ref": "#/$defs/generic_options"
-        },
-        {
-            "if": {
-                "properties": {
-                    "use_spire_db": {
-                        "const": true
-                    }
-                },
-                "required": ["use_spire_db"]
-            },
-            "then": {
-                "required": ["spire_db"]
-            }
         }
     ]
 }

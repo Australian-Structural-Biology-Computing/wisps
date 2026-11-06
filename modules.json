@@ -9,6 +9,11 @@
                         "branch": "master",
                         "git_sha": "cf17ca47590cc578dfb47db1c2a44ef86f89976d",
                         "installed_by": ["modules"]
+                    },
+                    "tar": {
+                        "branch": "master",
+                        "git_sha": "03cb040e9ed50a0e9c1e8cdbffc5f7cba6ecb3ca",
+                        "installed_by": ["modules"]
                     }
                 }
             },

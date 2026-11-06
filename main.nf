@@ -154,14 +154,14 @@ workflow {
     msa_json = WF_WISPS.out.msa_json.ifEmpty([])
     msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
     msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
-    
+
 }
 
 output {
     colabfold_predictions {
         path { sample -> {
                 sample.pdb >> "colabfold_predictions/pdb/"
-                sample.confidence >> "colabfold_predictions/confidence/"        
+                sample.confidence >> "colabfold_predictions/confidence/"
             }
         }
         enabled !params.compress_predictions
@@ -170,7 +170,7 @@ output {
         path { sample -> {
                 sample.cif >> "boltz_predictions/cif/${sample.cif.name}"
                 sample.pae >> "boltz_predictions/pae/${sample.pae.name}"
-                sample.confidence >> "boltz_predictions/confidence/${sample.confidence.name}"        
+                sample.confidence >> "boltz_predictions/confidence/${sample.confidence.name}"
             }
         }
         enabled !params.compress_predictions
@@ -178,7 +178,7 @@ output {
     af3_predictions {
         path { sample -> {
                 sample.cif >> "alphafold3_predictions/cif/${sample.cif.name}"
-                sample.confidence >> "alphafold3_predictions/confidence/${sample.confidence.name}"        
+                sample.confidence >> "alphafold3_predictions/confidence/${sample.confidence.name}"
             }
         }
         enabled !params.compress_predictions
