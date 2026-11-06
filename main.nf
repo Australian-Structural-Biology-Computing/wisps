@@ -51,6 +51,12 @@ workflow WF_WISPS {
     ch_alphafold3_params = ("alphafold3" in tool_set)
         ? Channel.fromPath(params.alphafold3_params, checkIfExists: true).first()
         : Channel.empty()
+    if (params.use_spire_db && !params.spire_db) {
+        error("--spire_db must be provided when --use_spire_db is enabled")
+    }
+    ch_spire_db = params.use_spire_db
+        ? Channel.fromPath(params.spire_db, checkIfExists: true).first()
+        : Channel.value([])
     //
     // WORKFLOW: Run pipeline
     //
@@ -65,6 +71,7 @@ workflow WF_WISPS {
             ch_boltz2_mols,
             Channel.fromPath(params.colabfold_envdb, checkIfExists: true).first(),
             Channel.fromPath(params.colabfold_uniref30, checkIfExists: true).first(),
+            ch_spire_db,
             ch_colabfold_alphafold2_params,
             params.colabfold_num_recycles,
             ch_alphafold3_params,
@@ -147,14 +154,14 @@ workflow {
     msa_json = WF_WISPS.out.msa_json.ifEmpty([])
     msa_yaml = WF_WISPS.out.msa_yaml.ifEmpty([])
     msa_csv  = WF_WISPS.out.msa_csv.ifEmpty([])
-    
+
 }
 
 output {
     colabfold_predictions {
         path { sample -> {
                 sample.pdb >> "colabfold_predictions/pdb/"
-                sample.confidence >> "colabfold_predictions/confidence/"        
+                sample.confidence >> "colabfold_predictions/confidence/"
             }
         }
         enabled !params.compress_predictions
@@ -163,7 +170,7 @@ output {
         path { sample -> {
                 sample.cif >> "boltz_predictions/cif/${sample.cif.name}"
                 sample.pae >> "boltz_predictions/pae/${sample.pae.name}"
-                sample.confidence >> "boltz_predictions/confidence/${sample.confidence.name}"        
+                sample.confidence >> "boltz_predictions/confidence/${sample.confidence.name}"
             }
         }
         enabled !params.compress_predictions
@@ -171,7 +178,7 @@ output {
     af3_predictions {
         path { sample -> {
                 sample.cif >> "alphafold3_predictions/cif/${sample.cif.name}"
-                sample.confidence >> "alphafold3_predictions/confidence/${sample.confidence.name}"        
+                sample.confidence >> "alphafold3_predictions/confidence/${sample.confidence.name}"
             }
         }
         enabled !params.compress_predictions

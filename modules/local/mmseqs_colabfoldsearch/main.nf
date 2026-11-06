@@ -8,6 +8,7 @@ process MMSEQS_COLABFOLDSEARCH {
     tuple val(meta), path(fasta)
     path ('db/*')
     path ('db/*')
+    path ('db/*')
 
     output:
     tuple val(meta), path("**.a3m"), emit: a3m

@@ -19,13 +19,13 @@ S2,Sample2.fasta,B,protein,S2
 S3,S3.fasta,A,rna,S3
 ```
 
-| Column     | Description                                                                                                                                                                                                                                                                                                                                        |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`       | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore or hyphen (`_`, `-`).                                                                                                                                                                                                                               |
-| `sequence` | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa". The file might contain multiple fasta sequnces in it, if the parameter `multi_fasta_file` is enabled, then the seqeunces will be extracted and interactions will be created considering each of them individually. otherwise, all the sequences will be consderd as one multimer sequences.                                                                                                                                                                                                                                                |
-| `type`     | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                             |
-| `group`    | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`. |
-| `sequence_id`    | It is an optional column and only needed if parameter `--input_fasta` is used. In this acse, this column should have the seqeuence id from the `--input_fasta` file and the seqeunce column will be ignored. This is used when the user have all input seqeunces in one fasta file rather than multiple files provided in the `seqeunce` columns. |
+| Column        | Description                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | The `id` identifiers have to be unique in the sample sheet and **must not** have an underscore or hyphen (`_`, `-`).                                                                                                                                                                                                                                                                        |
+| `sequence`    | Full path to FASTA file for sample sequence. File has to have the extension ".fasta", or ".fa". The file might contain multiple fasta sequnces in it, if the parameter `multi_fasta_file` is enabled, then the seqeunces will be extracted and interactions will be created considering each of them individually. otherwise, all the sequences will be consderd as one multimer sequences. |
+| `type`        | The sequence type, can be either `protein`, `rna`, `smiles`. It is an optional column; by default, it will be considered as `protein`.                                                                                                                                                                                                                                                      |
+| `group`       | It is a way to group samples together to create custom interactions. It is an optional column and **must not** have a hyphen (`-`). If not provided, the interactions will be `all-all`, which means all samples against all samples, or you can use `group.a-group.b` to only consider the samples from `group.a` against samples from `group.b`.                                          |
+| `sequence_id` | It is an optional column and only needed if parameter `--input_fasta` is used. In this acse, this column should have the seqeuence id from the `--input_fasta` file and the seqeunce column will be ignored. This is used when the user have all input seqeunces in one fasta file rather than multiple files provided in the `seqeunce` columns.                                           |
 
 A sequence file can contain multiple entities but if the entities are different types, they must adhere to the colabfold standard described below.
 
@@ -112,7 +112,7 @@ Reference: ColabFold input format examples in the official repository README: <h
   Run mmseqs on GPU.
 
 - `--use_spire_db` `[boolean]`
-  Use Spire database.
+  Use the SPIRE database. Requires `--spire_db`.
 
 ---
 
@@ -134,7 +134,11 @@ Reference: ColabFold input format examples in the official repository README: <h
   Default: `colabfold_envdb/colabfold_envdb_202108_db`
 
 - `--spire_db` `[string]`
-  Spire database.
+  Path to the SPIRE database directory. Required when `--use_spire_db` is enabled.
+
+- `--spire_db_prefix` `[string]`
+  SPIRE database prefix relative to the database directory.
+  **Default:** `spire_ctg10_2401_db`
 
 - `--colabfold_alphafold2_params` `[string]`
   AlphaFold2 parameters for ColabFold.
